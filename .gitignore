@@ -1,0 +1,31 @@
+# --- secrets ---
+.env
+.env.*
+!.env.example
+
+# --- local source text & generated character data ---
+# 原著文本、角色包、向量索引都只留在本地，不进公开仓库
+/花嫁.txt
+/data/
+
+# --- python ---
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
+# --- node ---
+node_modules/
+dist/
+
+# --- logs / temp ---
+*.log
+tmp/
+.cache/
+
+# --- OS ---
+.DS_Store
+Thumbs.db
