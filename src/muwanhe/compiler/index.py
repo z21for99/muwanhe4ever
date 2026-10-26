@@ -36,6 +36,7 @@ def build_scene_documents(
 def build_segment_documents(
     conn: sqlite3.Connection,
     limit: int | None = None,
+    offset: int = 0,
 ) -> list[dict]:
     sql = (
         "SELECT s.id, s.scene_id, s.text, s.summary "
@@ -45,12 +46,10 @@ def build_segment_documents(
         "  FROM segments GROUP BY scene_id"
         ") latest "
         "ON s.scene_id = latest.scene_id AND s.llm_run_id = latest.latest_run "
-        "ORDER BY s.scene_id, s.segment_index"
+        "ORDER BY s.scene_id, s.segment_index "
+        "LIMIT ? OFFSET ?"
     )
-    params: list[object] = []
-    if limit is not None:
-        sql += " LIMIT ?"
-        params.append(limit)
+    params: list[object] = [limit if limit is not None else -1, offset]
 
     documents = []
     for segment_id, scene_id, text, summary in conn.execute(sql, params):
@@ -78,12 +77,13 @@ def index_documents(
     model: str,
     kinds: tuple[str, ...] = ("scene", "segment"),
     limit: int | None = None,
+    offset: int = 0,
 ) -> dict:
     documents: list[dict] = []
     if "scene" in kinds:
         documents.extend(build_scene_documents(conn, limit))
     if "segment" in kinds:
-        documents.extend(build_segment_documents(conn, limit))
+        documents.extend(build_segment_documents(conn, limit, offset))
 
     if not documents:
         return {

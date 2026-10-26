@@ -91,6 +91,7 @@ def build_parser() -> argparse.ArgumentParser:
         default="all",
     )
     index.add_argument("--limit", type=int, default=None)
+    index.add_argument("--offset", type=int, default=0)
     index.add_argument("--model", default=None, help="override embedding model")
     index.add_argument("--dim", type=int, default=None, help="override dimensions")
 
@@ -275,6 +276,7 @@ def _index(args: argparse.Namespace) -> int:
             settings.model,
             kinds,
             args.limit,
+            args.offset,
         )
     except EmbeddingError as exc:
         print(json.dumps({"error": str(exc)}, ensure_ascii=False))

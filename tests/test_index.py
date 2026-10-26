@@ -52,3 +52,31 @@ def test_index_scene_and_segment():
     hits = search(conn, provider.embed(["hello world"])[0], top_k=5)
     assert hits
     assert hits[0].kind in {"scene", "segment"}
+
+
+def test_index_segment_offset():
+    conn = _db()
+    conn.execute(
+        "INSERT INTO segments "
+        "(id, llm_run_id, scene_id, segment_index, start_line, end_line, "
+        "text, summary, location, story_time, participants) "
+        "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        ("seg2", 1, "s1", 1, 2, 3, "second", "second", "here", "now", "[]"),
+    )
+    conn.commit()
+    provider = FakeEmbeddingProvider(dimensions=8)
+
+    stats = index_documents(
+        conn,
+        provider,
+        "fake",
+        kinds=("segment",),
+        limit=1,
+        offset=1,
+    )
+
+    assert stats["documents"] == 1
+    row = conn.execute(
+        "SELECT ref_id FROM embeddings WHERE kind = 'segment'"
+    ).fetchone()
+    assert row == ("seg2",)
