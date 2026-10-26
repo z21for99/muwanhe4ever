@@ -292,6 +292,11 @@ def _style(args: argparse.Namespace) -> int:
     return 0
 
 
+def _profile_path() -> Path | None:
+    path = Path("data/muwanhe_profile.md")
+    return path if path.exists() else None
+
+
 def _chat(args: argparse.Namespace) -> int:
     try:
         llm_settings = LLMSettings.from_env()
@@ -312,6 +317,7 @@ def _chat(args: argparse.Namespace) -> int:
             QwenEmbeddingProvider(embedding_settings),
             top_k=args.top_k,
             style_limit=args.style_limit,
+            profile_path=_profile_path(),
         )
         reply = engine.reply(args.message)
     finally:
@@ -338,6 +344,7 @@ def _serve(args: argparse.Namespace) -> int:
         conn,
         OpenAICompatLLM(llm_settings),
         QwenEmbeddingProvider(embedding_settings),
+        profile_path=_profile_path(),
     )
     uvicorn.run(create_app(engine), host=args.host, port=args.port)
     return 0

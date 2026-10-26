@@ -27,10 +27,13 @@ def build_messages(
     hits: list,
     history: list[dict],
     user_message: str,
+    profile: str = "",
 ) -> list[dict]:
-    system = "\n\n".join(
+    blocks = [core]
+    if profile:
+        blocks.extend(["角色档案（作者整理/生成，可修正）：", profile])
+    blocks.extend(
         [
-            core,
             "风格样本（只学口吻，不照抄内容）：",
             format_style_samples(samples),
             "原著片段（只作为事实依据，不要整段复述）：",
@@ -38,6 +41,7 @@ def build_messages(
             "回复要求：以沐婉荷的身份直接说话；短句、口语；不要解释你是 AI；不要编造原著没有的事实。",
         ]
     )
+    system = "\n\n".join(blocks)
     messages: list[dict] = [{"role": "system", "content": system}]
     for turn in history[-8:]:
         role = turn.get("role")

@@ -35,7 +35,8 @@ python -m muwanhe.cli index --db "data/muwanhe.db" --kind scene
 # 5. 构建 style bank（默认 precision 模式）
 python -m muwanhe.cli style --db "data/muwanhe.db" --min-samples 3
 
-# 6. 启动本地 Web + OpenAI 兼容 API
+# 6. 可选：把角色档案写到 data/muwanhe_profile.md，serve/chat 会自动加载
+# 7. 启动本地 Web + OpenAI 兼容 API
 python -m muwanhe.cli serve --db "data/muwanhe.db" --model "doubao-seed-2-0-mini-260428"
 # 打开 http://127.0.0.1:8000
 ```

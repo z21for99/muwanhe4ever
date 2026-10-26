@@ -11,7 +11,9 @@ from muwanhe.storage.vector_store import (
 )
 
 
-def test_engine_reply_uses_style_and_evidence():
+def test_engine_reply_uses_style_and_evidence(tmp_path):
+    profile = tmp_path / "profile.md"
+    profile.write_text("她怕黑。", encoding="utf-8")
     conn = sqlite3.connect(":memory:")
     init_extraction_db(conn)
     conn.execute(
@@ -38,7 +40,12 @@ def test_engine_reply_uses_style_and_evidence():
     )
 
     llm = FakeLLM(text="妈在呢。")
-    engine = CharacterEngine(conn, llm, FakeEmbeddingProvider(dimensions=4))
+    engine = CharacterEngine(
+        conn,
+        llm,
+        FakeEmbeddingProvider(dimensions=4),
+        profile_path=profile,
+    )
 
     reply = engine.reply("我回来了")
 
@@ -46,3 +53,4 @@ def test_engine_reply_uses_style_and_evidence():
     system = llm.chat_calls[0][0]["content"]
     assert "雨夜" in system
     assert "吃饭了吗？" in system
+    assert "她怕黑。" in system

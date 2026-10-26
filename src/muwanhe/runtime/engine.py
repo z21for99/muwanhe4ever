@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import sqlite3
+from pathlib import Path
 
 from ..providers.embedding import EmbeddingProvider
 from ..providers.llm import LLMProvider
@@ -16,12 +17,19 @@ class CharacterEngine:
         embedder: EmbeddingProvider,
         top_k: int = 3,
         style_limit: int = 5,
+        profile_path: str | Path | None = None,
     ):
         self.conn = conn
         self.llm = llm
         self.embedder = embedder
         self.top_k = top_k
         self.style_limit = style_limit
+        self.profile_path = Path(profile_path) if profile_path else None
+
+    def _load_profile(self) -> str:
+        if self.profile_path and self.profile_path.exists():
+            return self.profile_path.read_text(encoding="utf-8").strip()
+        return ""
 
     def _load_style_samples(self) -> list[dict]:
         rows = self.conn.execute(
@@ -47,5 +55,6 @@ class CharacterEngine:
             hits,
             history or [],
             user_message,
+            profile=self._load_profile(),
         )
         return self.llm.complete(messages)
