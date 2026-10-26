@@ -180,7 +180,7 @@ load_state → route_intent → plan_retrieval
 - 向量：默认 LanceDB；`VectorStore` 接口可换 Qdrant local。
 - 编排：LangGraph；provider 层可用 LangChain 适配。
 - LLM：OpenAI 兼容；测试用 DeepSeek 4.1 Flash（待开通）。
-- Embedding：火山 Ark `doubao-embedding-large-text-250515`（待解决权限）；fallback 本地 BGE-M3。
+- Embedding：默认 Qwen `qwen3.7-text-embedding-flash`（1024 维，OpenAI 兼容，已验证）；可选 `qwen3.7-text-embedding`（2560 维，质量更高）；火山 Ark 作为可选；本地 BGE-M3 兜底。
 - Web：Jinja2 + HTMX + SSE，不做 Node 构建。
 
 ```text
@@ -217,7 +217,7 @@ muwanhe4ever/
 
 ## 11. 风险与开放问题
 
-1. **Embedding 权限**：`doubao-embedding-large-text-250515` 在 `/models` 中为 `Retiring`，直接调用返回 `InvalidEndpointOrModel.NotFound`；同 key 调 `doubao-seed-2-0-mini-260428` 成功。优先检查 API Key 的模型授权/项目；不行则先用 BGE-M3。
+1. **Embedding 已切换**：Qwen `qwen3.7-text-embedding-flash` 已验证（base_url `https://maas.qianwenaiapi.com/compatible-mode/v1`，1024 维，2 条文本 36 tokens）。火山 Ark `doubao-embedding-large-text-250515` 仍为 `Retiring`/404，保留为可选 provider；本地 BGE-M3 兜底。
 2. **DeepSeek 4.1 Flash**：`deepseek-v4-1-flash-260910` 返回 `ModelNotOpen`，需在控制台开通；开发期可先用 `doubao-seed-2-0-mini-260428` 跑通链路。
 3. **对话归属质量**：第一人称文本的引号/转述/心理活动混杂，是最可能拖垮 style bank 的一步。
 4. **版权与内容**：公开仓库不带原文/角色包/索引；默认非露骨；用户本地数据自负其责。
