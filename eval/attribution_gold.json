@@ -1,0 +1,19 @@
+{
+  "description": "Manual speaker labels for scene v01c01p0s01. IDs only; no novel text is stored here.",
+  "items": [
+    {"utterance_id": "v01c01p0s01:q000", "expected": "muwanhe"},
+    {"utterance_id": "v01c01p0s01:q001", "expected": "baifengyuan"},
+    {"utterance_id": "v01c01p0s01:q002", "expected": "baifengyuan"},
+    {"utterance_id": "v01c01p0s01:q004", "expected": "father"},
+    {"utterance_id": "v01c01p0s01:q005", "expected": "father"},
+    {"utterance_id": "v01c01p0s01:q006", "expected": "muwanhe"},
+    {"utterance_id": "v01c01p0s01:q007", "expected": "father"},
+    {"utterance_id": "v01c01p0s01:q008", "expected": "father"},
+    {"utterance_id": "v01c01p0s01:q011", "expected": "muwanhe"},
+    {"utterance_id": "v01c01p0s01:q012", "expected": "baifengyuan"},
+    {"utterance_id": "v01c01p0s01:q013", "expected": "muwanhe"},
+    {"utterance_id": "v01c01p0s01:q014", "expected": "muwanhe"},
+    {"utterance_id": "v01c01p0s01:q015", "expected": "muwanhe"},
+    {"utterance_id": "v01c01p0s01:q016", "expected": "baifengyuan"}
+  ]
+}

@@ -9,6 +9,7 @@ from pathlib import Path
 import uvicorn
 
 from .api import create_app
+from .compiler.eval_attribution import evaluate_attribution, load_gold
 from .compiler.eval_retrieval import evaluate_retrieval
 from .compiler.extract import extract_scenes
 from .compiler.index import index_documents
@@ -152,6 +153,16 @@ def build_parser() -> argparse.ArgumentParser:
         default=None,
     )
     search_fts_cmd.add_argument("--top-k", type=int, default=5)
+
+    eval_attr = sub.add_parser(
+        "eval-attribution",
+        help="evaluate speaker attribution against a gold file",
+    )
+    eval_attr.add_argument("--db", default="data/muwanhe.db")
+    eval_attr.add_argument(
+        "--gold",
+        default="eval/attribution_gold.json",
+    )
     return parser
 
 
@@ -463,6 +474,19 @@ def _search_fts(args: argparse.Namespace) -> int:
     return 0
 
 
+def _eval_attribution(args: argparse.Namespace) -> int:
+    items = load_gold(args.gold)
+    conn = sqlite3.connect(Path(args.db))
+    try:
+        init_extraction_db(conn)
+        stats = evaluate_attribution(conn, items)
+    finally:
+        conn.close()
+
+    print(json.dumps(stats, ensure_ascii=False, indent=2))
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     if args.command == "parse":
@@ -487,6 +511,8 @@ def main(argv: list[str] | None = None) -> int:
         return _index_fts(args)
     if args.command == "search-fts":
         return _search_fts(args)
+    if args.command == "eval-attribution":
+        return _eval_attribution(args)
     return 1
 
 

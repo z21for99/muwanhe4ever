@@ -94,3 +94,39 @@ def test_vocative():
     assert attribution.speaker_id == "muwanhe"
     assert attribution.addressee_id == "baifengyuan"
     assert attribution.method == "vocative"
+
+
+def test_verb_first_cue():
+    text = "“下面我自己来。”说完，我拿过毛巾。"
+    quote = extract_quotes(text)[0]
+
+    attribution = attribute_quote(
+        quote, text, DEFAULT_CHARACTERS, None, ["baifengyuan", "muwanhe"]
+    )
+
+    assert attribution.speaker_id == "baifengyuan"
+    assert attribution.method == "cue"
+
+
+def test_answer_cue():
+    text = "“我来收碗。”她回答了一句。"
+    quote = extract_quotes(text)[0]
+
+    attribution = attribute_quote(
+        quote, text, DEFAULT_CHARACTERS, None, ["baifengyuan", "muwanhe"]
+    )
+
+    assert attribution.speaker_id == "muwanhe"
+    assert attribution.method == "cue"
+
+
+def test_voice_after_long_window():
+    text = "“饭呢？”" + " " * 35 + "父亲那公鸭嗓子般的声音。"
+    quote = extract_quotes(text)[0]
+
+    attribution = attribute_quote(
+        quote, text, DEFAULT_CHARACTERS, None, ["baifengyuan", "father"]
+    )
+
+    assert attribution.speaker_id == "father"
+    assert attribution.method == "voice"

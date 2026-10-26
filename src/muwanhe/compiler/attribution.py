@@ -11,9 +11,13 @@ CLOSERS = {closer for closer in OPENERS.values()}
 
 NAME_PATTERN = r"(我|她|母亲|妈妈|父亲|爸爸|爸|沐婉荷|婉荷|白风远|风远)"
 NAME_RE = re.compile(NAME_PATTERN)
-SPEECH_RE = re.compile(
-    r"(说|道|问|喊|叫|骂|笑|哭|吼|嘟囔|嘀咕|解释|反问|叹气|"
-    r"敷衍|回答|回应|开口|低语|呢喃|插嘴|打断|补充|自语|喃喃)"
+SPEECH_VERBS = (
+    "说|道|问|答|喊|叫|骂|笑|哭|吼|嘟囔|嘀咕|解释|反问|叹气|"
+    "敷衍|回答|回应|开口|低语|呢喃|插嘴|打断|补充|自语|喃喃"
+)
+SPEECH_RE = re.compile(f"({SPEECH_VERBS})")
+VERB_FIRST_RE = re.compile(
+    rf"^\s*(?:{SPEECH_VERBS})(?:完|了)?[，,]\s*{NAME_PATTERN}"
 )
 ADDRESSEE_PAIR_RE = re.compile(
     NAME_PATTERN + r"(?:对|跟|向)" + NAME_PATTERN + r"(?:说|道)"
@@ -132,8 +136,9 @@ def attribute_quote(
 ) -> Attribution:
     before = _local_before(scene_text, quote.start)
     after = _local_after(scene_text, quote.end)
+    voice_after = _local_after(scene_text, quote.end, limit=60)
 
-    voice = _voice_name(before) or _voice_name(after)
+    voice = _voice_name(before) or _voice_name(voice_after)
     if voice:
         speaker = _resolve(voice, characters)
         addressee = _default_addressee(speaker, present, previous_speaker)
@@ -144,6 +149,12 @@ def attribute_quote(
         speaker = _resolve(pair.group(1), characters)
         addressee = _resolve(pair.group(2), characters)
         return Attribution(speaker, addressee, "cue", 0.9 if speaker else 0.0)
+
+    verb_first = VERB_FIRST_RE.match(after)
+    if verb_first:
+        speaker = _resolve(verb_first.group(1), characters)
+        addressee = _default_addressee(speaker, present, previous_speaker)
+        return Attribution(speaker, addressee, "cue", 0.85 if speaker else 0.0)
 
     name = _cue_name(before) or _cue_name(after, last=False)
     if name:
