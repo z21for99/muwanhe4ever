@@ -11,6 +11,7 @@ from .compiler.index import index_documents
 from .compiler.parse import parse_file
 from .compiler.refine import refine_attributions
 from .compiler.scenes import build_scenes
+from .compiler.style import build_style_bank
 from .providers.embedding import EmbeddingSettings, QwenEmbeddingProvider
 from .providers.llm import LLMError, LLMSettings, OpenAICompatLLM
 from .storage.db import init_db, save_parse_result
@@ -84,6 +85,15 @@ def build_parser() -> argparse.ArgumentParser:
         default=None,
     )
     search_cmd.add_argument("--top-k", type=int, default=5)
+
+    style = sub.add_parser("style", help="build the style bank from strict utterances")
+    style.add_argument("--db", default="data/muwanhe.db", help="SQLite path")
+    style.add_argument("--min-samples", type=int, default=3)
+    style.add_argument(
+        "--all",
+        action="store_true",
+        help="include vocative and all cue methods (lower precision)",
+    )
     return parser
 
 
@@ -232,6 +242,22 @@ def _search(args: argparse.Namespace) -> int:
     return 0
 
 
+def _style(args: argparse.Namespace) -> int:
+    conn = sqlite3.connect(Path(args.db))
+    try:
+        init_extraction_db(conn)
+        stats = build_style_bank(
+            conn,
+            args.min_samples,
+            precision=not args.all,
+        )
+    finally:
+        conn.close()
+
+    print(json.dumps(stats, ensure_ascii=False, indent=2))
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     if args.command == "parse":
@@ -244,6 +270,8 @@ def main(argv: list[str] | None = None) -> int:
         return _index(args)
     if args.command == "search":
         return _search(args)
+    if args.command == "style":
+        return _style(args)
     return 1
 
 

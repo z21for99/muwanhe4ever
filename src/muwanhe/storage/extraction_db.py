@@ -54,6 +54,24 @@ CREATE TABLE IF NOT EXISTS segments (
   story_time TEXT,
   participants TEXT NOT NULL
 );
+CREATE TABLE IF NOT EXISTS style_modes (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  addressee_id TEXT,
+  scene_type TEXT NOT NULL,
+  emotion TEXT NOT NULL,
+  description TEXT NOT NULL,
+  sample_count INTEGER NOT NULL
+);
+CREATE TABLE IF NOT EXISTS style_samples (
+  id TEXT PRIMARY KEY,
+  mode_id TEXT NOT NULL,
+  utterance_id TEXT NOT NULL,
+  text TEXT NOT NULL,
+  context TEXT NOT NULL,
+  markedness TEXT NOT NULL,
+  tags TEXT NOT NULL
+);
 """
 
 
