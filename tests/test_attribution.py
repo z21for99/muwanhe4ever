@@ -53,3 +53,14 @@ def test_addressee_pair():
 
     assert attribution.speaker_id == "baifengyuan"
     assert attribution.addressee_id == "muwanhe"
+
+
+def test_father_cue():
+    text = "父亲说：“饭呢？”"
+    quote = extract_quotes(text)[0]
+
+    attribution = attribute_quote(
+        quote, text, DEFAULT_CHARACTERS, None, ["baifengyuan", "father"]
+    )
+
+    assert attribution.speaker_id == "father"

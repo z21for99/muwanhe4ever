@@ -15,7 +15,8 @@ def test_seed_and_load():
 
     characters = load_characters(conn)
 
-    assert len(characters) == 2
+    assert len(characters) == 3
     assert character_by_alias(characters, "妈妈").id == "muwanhe"
     assert character_by_alias(characters, "风远").id == "baifengyuan"
+    assert character_by_alias(characters, "父亲").id == "father"
     assert character_by_alias(characters, "陌生人") is None

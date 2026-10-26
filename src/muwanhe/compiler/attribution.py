@@ -3,11 +3,11 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 
-from ..characters import MUWANHE_ID, NARRATOR_ID, character_by_alias
+from ..characters import FATHER_ID, MUWANHE_ID, NARRATOR_ID, character_by_alias
 from ..schemas import Character
 from .dialogue import Quote
 
-NAME_PATTERN = r"(我|她|他|母亲|妈妈|沐婉荷|婉荷|白风远|风远)"
+NAME_PATTERN = r"(我|她|他|母亲|妈妈|父亲|爸爸|爸|沐婉荷|婉荷|白风远|风远)"
 NAME_RE = re.compile(NAME_PATTERN)
 SPEECH_RE = re.compile(
     r"(说|道|问|喊|叫|骂|笑|哭|吼|嘟囔|嘀咕|解释|反问|叹气)"
@@ -30,6 +30,8 @@ def scene_present(text: str) -> list[str]:
     present = [NARRATOR_ID]
     if any(alias in text for alias in ("沐婉荷", "婉荷", "母亲", "妈妈")):
         present.append(MUWANHE_ID)
+    if any(alias in text for alias in ("父亲", "爸")):
+        present.append(FATHER_ID)
     return present
 
 
@@ -42,8 +44,10 @@ def _resolve(name: str | None, characters: list[Character]) -> str | None:
         return MUWANHE_ID
     if name in ("母亲", "妈妈"):
         return MUWANHE_ID
+    if name in ("父亲", "爸爸", "爸"):
+        return FATHER_ID
     if name == "他":
-        return None
+        return FATHER_ID
     character = character_by_alias(characters, name)
     return character.id if character else None
 

@@ -3,11 +3,14 @@ from __future__ import annotations
 import argparse
 import json
 import sqlite3
+from dataclasses import replace
 from pathlib import Path
 
 from .compiler.extract import extract_scenes
 from .compiler.parse import parse_file
+from .compiler.refine import refine_attributions
 from .compiler.scenes import build_scenes
+from .providers.llm import LLMError, LLMSettings, OpenAICompatLLM
 from .storage.db import init_db, save_parse_result
 from .storage.extraction_db import (
     init_extraction_db,
@@ -38,6 +41,19 @@ def build_parser() -> argparse.ArgumentParser:
         default=None,
         help="max number of scenes to process",
     )
+
+    refine = sub.add_parser(
+        "refine",
+        help="LLM refine low-confidence speaker attribution",
+    )
+    refine.add_argument("--db", default="data/muwanhe.db", help="SQLite path")
+    refine.add_argument(
+        "--limit",
+        type=int,
+        default=None,
+        help="max number of scenes to process",
+    )
+    refine.add_argument("--model", default=None, help="override LLM model")
     return parser
 
 
@@ -94,12 +110,39 @@ def _extract(args: argparse.Namespace) -> int:
     return 0
 
 
+def _refine(args: argparse.Namespace) -> int:
+    try:
+        settings = LLMSettings.from_env()
+    except LLMError as exc:
+        print(json.dumps({"error": str(exc)}, ensure_ascii=False))
+        return 2
+    if args.model:
+        settings = replace(settings, model=args.model)
+
+    conn = sqlite3.connect(Path(args.db))
+    try:
+        init_extraction_db(conn)
+        stats = refine_attributions(
+            conn,
+            OpenAICompatLLM(settings),
+            settings.model,
+            args.limit,
+        )
+    finally:
+        conn.close()
+
+    print(json.dumps(stats, ensure_ascii=False, indent=2))
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     if args.command == "parse":
         return _parse(args)
     if args.command == "extract":
         return _extract(args)
+    if args.command == "refine":
+        return _refine(args)
     return 1
 
 

@@ -34,6 +34,26 @@ CREATE TABLE IF NOT EXISTS extraction_runs (
   created_at TEXT NOT NULL,
   stats TEXT NOT NULL
 );
+CREATE TABLE IF NOT EXISTS llm_runs (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  model TEXT NOT NULL,
+  scene_limit INTEGER,
+  created_at TEXT NOT NULL,
+  stats TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS segments (
+  id TEXT PRIMARY KEY,
+  llm_run_id INTEGER NOT NULL,
+  scene_id TEXT NOT NULL,
+  segment_index INTEGER NOT NULL,
+  start_line INTEGER NOT NULL,
+  end_line INTEGER NOT NULL,
+  text TEXT NOT NULL,
+  summary TEXT NOT NULL,
+  location TEXT,
+  story_time TEXT,
+  participants TEXT NOT NULL
+);
 """
 
 
@@ -119,3 +139,22 @@ def load_latest_stats(conn: sqlite3.Connection) -> dict:
         "SELECT stats FROM extraction_runs ORDER BY id DESC LIMIT 1"
     ).fetchone()
     return json.loads(row[0]) if row else {}
+
+
+def insert_llm_run(
+    conn: sqlite3.Connection,
+    model: str,
+    scene_limit: int | None,
+    stats: dict,
+) -> int:
+    cur = conn.execute(
+        "INSERT INTO llm_runs (model, scene_limit, created_at, stats) "
+        "VALUES (?, ?, ?, ?)",
+        (
+            model,
+            scene_limit,
+            datetime.now(timezone.utc).isoformat(),
+            json.dumps(stats, ensure_ascii=False),
+        ),
+    )
+    return int(cur.lastrowid)
