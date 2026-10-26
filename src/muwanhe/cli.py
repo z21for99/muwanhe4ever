@@ -5,9 +5,16 @@ import json
 import sqlite3
 from pathlib import Path
 
+from .compiler.extract import extract_scenes
 from .compiler.parse import parse_file
 from .compiler.scenes import build_scenes
 from .storage.db import init_db, save_parse_result
+from .storage.extraction_db import (
+    init_extraction_db,
+    load_characters,
+    save_extraction,
+    seed_characters,
+)
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -22,14 +29,19 @@ def build_parser() -> argparse.ArgumentParser:
         default=None,
         help="comma-separated volume titles in reading order",
     )
+
+    extract = sub.add_parser("extract", help="extract dialogue from parsed scenes")
+    extract.add_argument("--db", default="data/muwanhe.db", help="SQLite path")
+    extract.add_argument(
+        "--limit",
+        type=int,
+        default=None,
+        help="max number of scenes to process",
+    )
     return parser
 
 
-def main(argv: list[str] | None = None) -> int:
-    args = build_parser().parse_args(argv)
-    if args.command != "parse":
-        return 1
-
+def _parse(args: argparse.Namespace) -> int:
     volume_order = None
     if args.volume_order:
         volume_order = [
@@ -63,6 +75,32 @@ def main(argv: list[str] | None = None) -> int:
     }
     print(json.dumps(summary, ensure_ascii=False, indent=2))
     return 0
+
+
+def _extract(args: argparse.Namespace) -> int:
+    db_path = Path(args.db)
+    conn = sqlite3.connect(db_path)
+    try:
+        init_extraction_db(conn)
+        seed_characters(conn)
+        characters = load_characters(conn)
+        utterances, stats = extract_scenes(conn, characters, args.limit)
+        run_id = save_extraction(conn, utterances, stats, args.limit)
+    finally:
+        conn.close()
+
+    summary = {"run_id": run_id, **stats}
+    print(json.dumps(summary, ensure_ascii=False, indent=2))
+    return 0
+
+
+def main(argv: list[str] | None = None) -> int:
+    args = build_parser().parse_args(argv)
+    if args.command == "parse":
+        return _parse(args)
+    if args.command == "extract":
+        return _extract(args)
+    return 1
 
 
 if __name__ == "__main__":

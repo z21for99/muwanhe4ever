@@ -44,3 +44,24 @@ class ParseResult(BaseModel):
     chapters: list[Chapter]
     scenes: list[Scene] = Field(default_factory=list)
     anomalies: list[str] = Field(default_factory=list)
+
+
+class Character(BaseModel):
+    id: str
+    name: str
+    aliases: list[str]
+    is_narrator: bool = False
+
+
+class Utterance(BaseModel):
+    id: str
+    scene_id: str
+    speaker_id: str | None
+    addressee_id: str | None
+    text: str
+    context: str
+    quote_start: int
+    quote_end: int
+    method: str
+    confidence: float
+    is_dialogue: bool = True
