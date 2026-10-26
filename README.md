@@ -82,7 +82,7 @@ docs/superpowers/  design spec + plans
 
 ## 当前指标
 
-- 68 个单元测试通过。
+- 69 个单元测试通过。
 - scene 检索（20 场景 leave-one-out）：向量 top1 0.85 / top5 0.90；FTS exact-substring top1 1.0。
 - strict 对话：4,134 条；高精度沐婉荷台词 223 条（window=8）。
 - 场景分段：725 段已生成；向量/FTS 均已索引 121 scene + 703 segment。
@@ -93,5 +93,6 @@ docs/superpowers/  design spec + plans
 - 第一场 14 条 gold 的 precision 是 0.889，扩到 44 条后掉到 0.529：多人物场景里 `我/她/孙淑怡` 的 cue 会互相抢话，strict 仍会把别人台词分给主角色。
 - speaker 归属的 strict coverage 只有 0.386，大部分引语仍是 `unverified`；需要更强模型或人工复核。
 - Qwen embedding 免费额度有限：703 段是分 20 段/批补的；重建时建议 `--limit 20 --offset ...` 分批，否则容易 429。
+- 火山 Ark 账户当前欠费（403 `AccountOverdueError`），live chat 会返回 503；结算后恢复。
 - LLM 复核使用 `doubao-seed-2-0-mini` 时归属质量不足；DeepSeek 4.1 Flash 尚未开通。
 - API 支持 `stream=true` SSE；Web 页仍是一次性返回。

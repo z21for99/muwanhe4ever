@@ -374,7 +374,7 @@ def _chat(args: argparse.Namespace) -> int:
         )
         try:
             reply = engine.reply(args.message)
-        except EmbeddingError as exc:
+        except (EmbeddingError, LLMError) as exc:
             print(json.dumps({"error": str(exc)}, ensure_ascii=False))
             return 2
     finally:

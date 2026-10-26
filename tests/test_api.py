@@ -3,6 +3,7 @@ import sqlite3
 from fastapi.testclient import TestClient
 
 from muwanhe.api import create_app
+from muwanhe.providers.llm import LLMError
 from muwanhe.storage.session_db import SessionStore, init_session_db
 
 
@@ -18,6 +19,11 @@ class RecordingEngine:
     def reply(self, user_message: str, history: list[dict] | None = None) -> str:
         self.calls.append((user_message, history))
         return f"reply:{user_message}"
+
+
+class FailingEngine:
+    def reply(self, user_message: str, history: list[dict] | None = None) -> str:
+        raise LLMError("Ark account overdue")
 
 
 def test_health_and_models():
@@ -126,3 +132,18 @@ def test_session_endpoints():
 
     assert client.delete("/api/session/u2").json() == {"ok": True}
     assert client.get("/api/session/u2").json()["messages"] == []
+
+
+def test_llm_error_returns_503():
+    client = TestClient(create_app(FailingEngine()))
+
+    response = client.post(
+        "/v1/chat/completions",
+        json={
+            "model": "muwanhe",
+            "messages": [{"role": "user", "content": "A"}],
+        },
+    )
+
+    assert response.status_code == 503
+    assert "overdue" in response.json()["error"]["message"]

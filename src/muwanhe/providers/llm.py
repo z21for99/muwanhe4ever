@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Protocol
 
-from openai import BadRequestError, OpenAI
+from openai import BadRequestError, OpenAI, PermissionDeniedError, RateLimitError
 
 
 class LLMError(RuntimeError):
@@ -104,12 +104,20 @@ class OpenAICompatLLM:
             "max_tokens": max_tokens,
         }
         try:
-            response = self.client.chat.completions.create(
-                **payload,
-                extra_body={"thinking": {"type": "disabled"}},
-            )
-        except BadRequestError:
-            response = self.client.chat.completions.create(**payload)
+            try:
+                response = self.client.chat.completions.create(
+                    **payload,
+                    extra_body={"thinking": {"type": "disabled"}},
+                )
+            except BadRequestError:
+                response = self.client.chat.completions.create(**payload)
+        except PermissionDeniedError as exc:
+            raise LLMError(
+                "Ark account overdue or permission denied; "
+                "settle the balance or check the API key"
+            ) from exc
+        except RateLimitError as exc:
+            raise LLMError("LLM rate limit exceeded; retry later") from exc
 
         content = response.choices[0].message.content or ""
         try:
@@ -129,12 +137,20 @@ class OpenAICompatLLM:
             "max_tokens": max_tokens,
         }
         try:
-            response = self.client.chat.completions.create(
-                **payload,
-                extra_body={"thinking": {"type": "disabled"}},
-            )
-        except BadRequestError:
-            response = self.client.chat.completions.create(**payload)
+            try:
+                response = self.client.chat.completions.create(
+                    **payload,
+                    extra_body={"thinking": {"type": "disabled"}},
+                )
+            except BadRequestError:
+                response = self.client.chat.completions.create(**payload)
+        except PermissionDeniedError as exc:
+            raise LLMError(
+                "Ark account overdue or permission denied; "
+                "settle the balance or check the API key"
+            ) from exc
+        except RateLimitError as exc:
+            raise LLMError("LLM rate limit exceeded; retry later") from exc
         return response.choices[0].message.content or ""
 
 

@@ -6,9 +6,10 @@ import uuid
 from typing import Any, Protocol
 
 from fastapi import FastAPI, HTTPException
-from fastapi.responses import HTMLResponse, StreamingResponse
+from fastapi.responses import HTMLResponse, JSONResponse, StreamingResponse
 from pydantic import BaseModel
 
+from .providers.llm import LLMError
 from .web import INDEX_HTML
 from .storage.session_db import SessionStore
 
@@ -55,6 +56,18 @@ def create_app(
     sessions: SessionStore | None = None,
 ) -> FastAPI:
     app = FastAPI(title="muwanhe", version="0.1.0")
+
+    @app.exception_handler(LLMError)
+    def llm_error_handler(request, exc: LLMError) -> JSONResponse:
+        return JSONResponse(
+            status_code=503,
+            content={
+                "error": {
+                    "message": str(exc),
+                    "type": "llm_unavailable",
+                }
+            },
+        )
 
     @app.get("/health")
     def health() -> dict:
