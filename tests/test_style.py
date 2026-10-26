@@ -74,4 +74,5 @@ def test_is_explicit_cue():
 def test_negative_address():
     assert _has_negative_address("妈，你会生气么？")
     assert _has_negative_address("不好意思啊，沐总。")
+    assert _has_negative_address("那沐阿姨呢，她会愿意我住在这么？")
     assert not _has_negative_address("妈妈没事。")

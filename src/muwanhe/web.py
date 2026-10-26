@@ -10,9 +10,11 @@ INDEX_HTML = """<!doctype html>
   body { margin:0; min-height:100vh; background:var(--bg); color:var(--text);
          font-family: "Noto Serif SC", "Songti SC", system-ui, sans-serif; }
   #app { max-width: 760px; margin: 0 auto; min-height: 100vh; display:flex; flex-direction:column; }
-  header { padding: 22px 20px 14px; border-bottom:1px solid var(--line); }
+  header { padding: 22px 20px 14px; border-bottom:1px solid var(--line); display:flex; justify-content:space-between; align-items:flex-start; gap:12px; }
   header h1 { margin:0; font-size:20px; font-weight:600; letter-spacing:.08em; }
   header p { margin:6px 0 0; color:var(--muted); font-size:13px; }
+  header button { background:transparent; border:1px solid var(--line); color:var(--muted); border-radius:8px; padding:7px 10px; font-size:12px; cursor:pointer; white-space:nowrap; }
+  header button:hover { color:var(--text); border-color:var(--accent); }
   #messages { flex:1; overflow-y:auto; padding:22px 20px; display:flex; flex-direction:column; gap:14px; }
   .row { display:flex; }
   .row.user { justify-content:flex-end; }
@@ -32,8 +34,11 @@ INDEX_HTML = """<!doctype html>
 <body>
 <div id="app">
   <header>
-    <h1>沐婉荷</h1>
-    <p>本地角色运行时 · 你说一句，她回一句</p>
+    <div>
+      <h1>沐婉荷</h1>
+      <p>本地角色运行时 · 你说一句，她回一句</p>
+    </div>
+    <button id="reset" type="button">重新开始</button>
   </header>
   <main id="messages">
     <div class="empty" id="empty">她坐在客厅的旧沙发上，像是在等你说点什么。</div>
@@ -45,11 +50,11 @@ INDEX_HTML = """<!doctype html>
 </div>
 <script>
 const USER_ID = 'web-local';
-const empty = document.getElementById('empty');
 const list = document.getElementById('messages');
 const form = document.getElementById('form');
 const input = document.getElementById('input');
 const send = document.getElementById('send');
+const reset = document.getElementById('reset');
 
 function bubble(role, text) {
   const row = document.createElement('div');
@@ -66,7 +71,7 @@ form.addEventListener('submit', async (event) => {
   event.preventDefault();
   const text = input.value.trim();
   if (!text) return;
-  if (empty) empty.remove();
+  document.getElementById('empty')?.remove();
   input.value = '';
   send.disabled = true;
   bubble('user', text);
@@ -107,7 +112,7 @@ async function loadHistory() {
     const response = await fetch(`/api/session/${USER_ID}`);
     const data = await response.json();
     if (!data.messages || !data.messages.length) return;
-    if (empty) empty.remove();
+    document.getElementById('empty')?.remove();
     for (const message of data.messages) {
       bubble(message.role, message.content);
     }
@@ -116,6 +121,21 @@ async function loadHistory() {
   }
 }
 
+async function resetSession() {
+  try {
+    await fetch(`/api/session/${USER_ID}`, { method: 'DELETE' });
+  } catch (error) {
+    // 后端不可用时仍然清空本地视图
+  }
+  list.innerHTML = '';
+  const placeholder = document.createElement('div');
+  placeholder.className = 'empty';
+  placeholder.id = 'empty';
+  placeholder.textContent = '她坐在客厅的旧沙发上，像是在等你说点什么。';
+  list.appendChild(placeholder);
+}
+
+reset.addEventListener('click', resetSession);
 loadHistory();
 </script>
 </body>

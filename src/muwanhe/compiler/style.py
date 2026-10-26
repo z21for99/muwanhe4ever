@@ -53,7 +53,7 @@ EXPLICIT_VERBS = (
     "低声",
 )
 VOICE_NAMES = ("母亲", "沐婉荷", "婉荷")
-NEGATIVE_ADDRESS_MARKERS = ("沐总", "沐姐", "婉荷姐")
+NEGATIVE_ADDRESS_MARKERS = ("沐总", "沐姐", "婉荷姐", "沐阿姨")
 
 
 def _match(text: str, words: tuple[str, ...]) -> list[str]:

@@ -53,6 +53,8 @@ def test_web_page():
     assert response.status_code == 200
     assert "沐婉荷" in response.text
     assert "/v1/chat/completions" in response.text
+    assert "重新开始" in response.text
+    assert "/api/session/" in response.text
 
 
 def test_streaming_chat():
