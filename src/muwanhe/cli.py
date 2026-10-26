@@ -6,6 +6,9 @@ import sqlite3
 from dataclasses import replace
 from pathlib import Path
 
+import uvicorn
+
+from .api import create_app
 from .compiler.extract import extract_scenes
 from .compiler.index import index_documents
 from .compiler.parse import parse_file
@@ -102,6 +105,12 @@ def build_parser() -> argparse.ArgumentParser:
     chat.add_argument("--model", default=None, help="override LLM model")
     chat.add_argument("--top-k", type=int, default=3)
     chat.add_argument("--style-limit", type=int, default=5)
+
+    serve = sub.add_parser("serve", help="serve the OpenAI-compatible local API")
+    serve.add_argument("--db", default="data/muwanhe.db", help="SQLite path")
+    serve.add_argument("--host", default="127.0.0.1")
+    serve.add_argument("--port", type=int, default=8000)
+    serve.add_argument("--model", default=None, help="override LLM model")
     return parser
 
 
@@ -295,6 +304,28 @@ def _chat(args: argparse.Namespace) -> int:
     return 0
 
 
+def _serve(args: argparse.Namespace) -> int:
+    try:
+        llm_settings = LLMSettings.from_env()
+        embedding_settings = EmbeddingSettings.from_env()
+    except LLMError as exc:
+        print(json.dumps({"error": str(exc)}, ensure_ascii=False))
+        return 2
+    if args.model:
+        llm_settings = replace(llm_settings, model=args.model)
+
+    conn = sqlite3.connect(Path(args.db), check_same_thread=False)
+    init_extraction_db(conn)
+    init_vector_db(conn)
+    engine = CharacterEngine(
+        conn,
+        OpenAICompatLLM(llm_settings),
+        QwenEmbeddingProvider(embedding_settings),
+    )
+    uvicorn.run(create_app(engine), host=args.host, port=args.port)
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     if args.command == "parse":
@@ -311,6 +342,8 @@ def main(argv: list[str] | None = None) -> int:
         return _style(args)
     if args.command == "chat":
         return _chat(args)
+    if args.command == "serve":
+        return _serve(args)
     return 1
 
 
