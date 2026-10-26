@@ -78,6 +78,12 @@ tests/
 docs/superpowers/  design spec + plans
 ```
 
+## 当前指标
+
+- 52 个单元测试通过。
+- scene 检索（20 场景 leave-one-out）：top1 0.85 / top5 0.90 / MRR 0.867。
+- strict 对话：4,060 条；高精度沐婉荷台词 348 条。
+
 ## 已知问题
 
 - speaker 归属的 `turn` 比例仍高，strict 语料只有约 348 条高精度沐婉荷台词；style bank 仍需人工抽检。

@@ -9,6 +9,7 @@ from pathlib import Path
 import uvicorn
 
 from .api import create_app
+from .compiler.eval_retrieval import evaluate_retrieval
 from .compiler.extract import extract_scenes
 from .compiler.index import index_documents
 from .compiler.parse import parse_file
@@ -111,6 +112,15 @@ def build_parser() -> argparse.ArgumentParser:
     serve.add_argument("--host", default="127.0.0.1")
     serve.add_argument("--port", type=int, default=8000)
     serve.add_argument("--model", default=None, help="override LLM model")
+
+    eval_retrieval = sub.add_parser(
+        "eval-retrieval",
+        help="leave-one-out scene retrieval evaluation",
+    )
+    eval_retrieval.add_argument("--db", default="data/muwanhe.db")
+    eval_retrieval.add_argument("--limit", type=int, default=20)
+    eval_retrieval.add_argument("--top-k", type=int, default=5)
+    eval_retrieval.add_argument("--model", default=None)
     return parser
 
 
@@ -326,6 +336,31 @@ def _serve(args: argparse.Namespace) -> int:
     return 0
 
 
+def _eval_retrieval(args: argparse.Namespace) -> int:
+    try:
+        settings = EmbeddingSettings.from_env()
+    except LLMError as exc:
+        print(json.dumps({"error": str(exc)}, ensure_ascii=False))
+        return 2
+    if args.model:
+        settings = replace(settings, model=args.model)
+
+    conn = sqlite3.connect(Path(args.db))
+    try:
+        init_vector_db(conn)
+        stats = evaluate_retrieval(
+            conn,
+            QwenEmbeddingProvider(settings),
+            args.limit,
+            args.top_k,
+        )
+    finally:
+        conn.close()
+
+    print(json.dumps(stats, ensure_ascii=False, indent=2))
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     if args.command == "parse":
@@ -344,6 +379,8 @@ def main(argv: list[str] | None = None) -> int:
         return _chat(args)
     if args.command == "serve":
         return _serve(args)
+    if args.command == "eval-retrieval":
+        return _eval_retrieval(args)
     return 1
 
 
