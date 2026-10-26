@@ -16,11 +16,12 @@
 |---|---|
 | file | `花嫁(2).txt` |
 | chars | 1,082,507 |
-| volumes | 4: 窃脂篇 / 拾棘篇 / 阴雷篇 / 洊雷篇 |
+| volumes | 4 (correct order: 阴雷 / 窃脂 / 拾棘 / 洊雷) |
 | unique chapters | 31: 10 / 10 / 5 / 6 |
 | chapter parts | 35 |
 | source order | 窃脂 → 拾棘 → 阴雷 → 洊雷 |
-| notes | Volume order differs from the old 3-volume file; `阴雷` may be a flashback. This plan stores file order only; `story_time` comes in a later plan. |
+| correct order | 阴雷 → 窃脂 → 拾棘 → 洊雷 |
+| notes | The source file order is wrong; the parser reorders via `volume_order`. `story_time` still comes later. |
 
 `花嫁(2).txt` is local-only and ignored by `/花嫁*.txt`. Do not commit it.
 
@@ -395,6 +396,31 @@ def test_parse_groups_parts(tmp_path: Path):
     assert result.chapters[1].parts[1].text == "b2"
     assert result.chapters[2].title == "标题"
     assert result.anomalies == []
+
+
+REORDER_SAMPLE = """第一卷 甲篇
+第1章
+a
+第二卷 乙篇
+第1章
+b
+第三卷 丙篇
+第1章
+c
+"""
+
+
+def test_parse_reorders_volumes(tmp_path: Path):
+    p = tmp_path / "reorder.txt"
+    p.write_text(REORDER_SAMPLE, encoding="utf-8")
+
+    result = parse_file(p, volume_order=["丙篇", "甲篇", "乙篇"])
+
+    assert [v.title for v in result.volumes] == ["丙篇", "甲篇", "乙篇"]
+    assert [v.index for v in result.volumes] == [1, 2, 3]
+    assert [v.source_index for v in result.volumes] == [3, 1, 2]
+    assert [c.parts[0].text for c in result.chapters] == ["c", "a", "b"]
+    assert [c.volume_index for c in result.chapters] == [1, 2, 3]
 ```
 
 - [ ] **Step 2: Run it to verify it fails**
@@ -417,6 +443,7 @@ from pydantic import BaseModel, Field
 
 class Volume(BaseModel):
     index: int
+    source_index: int
     title: str
     start_line: int
 
@@ -468,7 +495,11 @@ from ..schemas import Chapter, ChapterPart, ParseResult, Volume
 from .headings import parse_heading
 
 
-def parse_file(path: Path, encoding: str = "utf-8") -> ParseResult:
+def parse_file(
+    path: Path,
+    encoding: str = "utf-8",
+    volume_order: list[str] | None = None,
+) -> ParseResult:
     text = path.read_text(encoding=encoding)
     lines = text.splitlines()
 
@@ -515,6 +546,7 @@ def parse_file(path: Path, encoding: str = "utf-8") -> ParseResult:
             current_chapter = None
             volume = Volume(
                 index=heading.index or 0,
+                source_index=heading.index or 0,
                 title=heading.title,
                 start_line=line_no,
             )
@@ -530,7 +562,12 @@ def parse_file(path: Path, encoding: str = "utf-8") -> ParseResult:
             flush_part(line_no - 1)
             if current_volume is None:
                 anomalies.append(f"chapter before volume at line {line_no}")
-                current_volume = Volume(index=0, title="(untitled)", start_line=line_no)
+                current_volume = Volume(
+                    index=0,
+                    source_index=0,
+                    title="(untitled)",
+                    start_line=line_no,
+                )
                 volumes.append(current_volume)
 
             chapter_index = heading.index or 0
@@ -555,6 +592,7 @@ def parse_file(path: Path, encoding: str = "utf-8") -> ParseResult:
             part_lines.append(raw)
 
     flush_part(len(lines))
+    _apply_volume_order(volumes, chapters, volume_order, anomalies)
 
     if not volumes:
         anomalies.append("no volume headings found")
@@ -569,6 +607,49 @@ def parse_file(path: Path, encoding: str = "utf-8") -> ParseResult:
         chapters=chapters,
         anomalies=anomalies,
     )
+
+
+def _apply_volume_order(
+    volumes: list[Volume],
+    chapters: list[Chapter],
+    volume_order: list[str] | None,
+    anomalies: list[str],
+) -> None:
+    if not volume_order:
+        return
+
+    if len(set(volume_order)) != len(volume_order):
+        anomalies.append(f"volume_order has duplicates: {volume_order}")
+        return
+
+    by_title = {volume.title: volume for volume in volumes}
+    if len(by_title) != len(volumes) or any(
+        title not in by_title for title in volume_order
+    ):
+        anomalies.append(f"volume_order mismatch: {volume_order}")
+        return
+    if len(volume_order) != len(volumes):
+        anomalies.append(f"volume_order mismatch: {volume_order}")
+        return
+
+    ordered = [by_title[title] for title in volume_order]
+    mapping = {
+        volume.source_index: index
+        for index, volume in enumerate(ordered, start=1)
+    }
+
+    for volume in volumes:
+        volume.index = mapping[volume.source_index]
+    for chapter in chapters:
+        if chapter.volume_index not in mapping:
+            anomalies.append(
+                f"chapter volume {chapter.volume_index} missing from volume_order"
+            )
+            continue
+        chapter.volume_index = mapping[chapter.volume_index]
+
+    volumes.sort(key=lambda volume: volume.index)
+    chapters.sort(key=lambda chapter: (chapter.volume_index, chapter.index))
 ```
 
 - [ ] **Step 4: Run test to verify it passes**
@@ -577,7 +658,7 @@ def parse_file(path: Path, encoding: str = "utf-8") -> ParseResult:
 python -m pytest tests/test_parse.py -v
 ```
 
-Expected: `1 passed`.
+Expected: `2 passed`.
 
 - [ ] **Step 5: Commit**
 
@@ -749,7 +830,7 @@ def test_save_and_stats():
         source="book.txt",
         chars=10,
         lines=3,
-        volumes=[Volume(index=1, title="甲篇", start_line=1)],
+        volumes=[Volume(index=1, source_index=1, title="甲篇", start_line=1)],
         chapters=[
             Chapter(
                 index=1,
@@ -820,6 +901,7 @@ CREATE TABLE IF NOT EXISTS volumes (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   run_id INTEGER NOT NULL,
   volume_index INTEGER NOT NULL,
+  source_index INTEGER NOT NULL,
   title TEXT NOT NULL,
   start_line INTEGER NOT NULL
 );
@@ -868,9 +950,9 @@ def save_parse_result(conn: sqlite3.Connection, result: ParseResult) -> int:
 
     for volume in result.volumes:
         conn.execute(
-            "INSERT INTO volumes (run_id, volume_index, title, start_line) "
-            "VALUES (?, ?, ?, ?)",
-            (run_id, volume.index, volume.title, volume.start_line),
+            "INSERT INTO volumes (run_id, volume_index, source_index, title, start_line) "
+            "VALUES (?, ?, ?, ?, ?)",
+            (run_id, volume.index, volume.source_index, volume.title, volume.start_line),
         )
 
     for chapter in result.chapters:
@@ -991,6 +1073,36 @@ def test_cli_parse(tmp_path: Path, capsys):
 
     conn = sqlite3.connect(db)
     assert conn.execute("SELECT COUNT(*) FROM scenes").fetchone()[0] == 1
+
+
+def test_cli_reorders_volumes(tmp_path: Path, capsys):
+    source = tmp_path / "book.txt"
+    source.write_text(
+        "第一卷 甲篇\n第1章\na\n第二卷 乙篇\n第1章\nb\n",
+        encoding="utf-8",
+    )
+    db = tmp_path / "book.db"
+
+    assert main(
+        [
+            "parse",
+            "--input",
+            str(source),
+            "--db",
+            str(db),
+            "--volume-order",
+            "乙篇,甲篇",
+        ]
+    ) == 0
+
+    conn = sqlite3.connect(db)
+    titles = [
+        row[0]
+        for row in conn.execute(
+            "SELECT title FROM volumes ORDER BY volume_index"
+        )
+    ]
+    assert titles == ["乙篇", "甲篇"]
 ```
 
 - [ ] **Step 2: Run it to verify it fails**
@@ -1025,6 +1137,11 @@ def build_parser() -> argparse.ArgumentParser:
     parse = sub.add_parser("parse", help="parse a source text into SQLite")
     parse.add_argument("--input", required=True, help="path to the source .txt")
     parse.add_argument("--db", default="data/muwanhe.db", help="SQLite output path")
+    parse.add_argument(
+        "--volume-order",
+        default=None,
+        help="comma-separated volume titles in reading order",
+    )
     return parser
 
 
@@ -1033,7 +1150,14 @@ def main(argv: list[str] | None = None) -> int:
     if args.command != "parse":
         return 1
 
-    result = parse_file(Path(args.input))
+    volume_order = None
+    if args.volume_order:
+        volume_order = [
+            item.strip()
+            for item in args.volume_order.split(",")
+            if item.strip()
+        ]
+    result = parse_file(Path(args.input), volume_order=volume_order)
     result.scenes = build_scenes(result.chapters)
 
     db_path = Path(args.db)
@@ -1070,7 +1194,7 @@ if __name__ == "__main__":
 python -m pytest tests/test_cli.py -v
 ```
 
-Expected: `1 passed`.
+Expected: `2 passed`.
 
 - [ ] **Step 5: Commit**
 
@@ -1100,15 +1224,19 @@ SOURCE = Path("花嫁(2).txt")
 
 @pytest.mark.skipif(not SOURCE.exists(), reason="local source text not present")
 def test_real_source_shape():
-    result = parse_file(SOURCE)
+    result = parse_file(
+        SOURCE,
+        volume_order=["阴雷篇", "窃脂篇", "拾棘篇", "洊雷篇"],
+    )
 
     assert len(result.volumes) == 4
     assert [v.title for v in result.volumes] == [
+        "阴雷篇",
         "窃脂篇",
         "拾棘篇",
-        "阴雷篇",
         "洊雷篇",
     ]
+    assert [v.source_index for v in result.volumes] == [3, 1, 2, 4]
     assert len(result.chapters) == 31
     assert sum(len(c.parts) for c in result.chapters) == 35
     assert result.chars == 1082507
@@ -1126,7 +1254,7 @@ Expected on this machine: `1 passed`. On a machine without the source: `1 skippe
 - [ ] **Step 3: Run the CLI on the real source**
 
 ```powershell
-python -m muwanhe.cli parse --input "花嫁(2).txt" --db "data/muwanhe.db"
+python -m muwanhe.cli parse --input "花嫁(2).txt" --db "data/muwanhe.db" --volume-order "阴雷篇,窃脂篇,拾棘篇,洊雷篇"
 ```
 
 Expected JSON fields:
@@ -1160,5 +1288,6 @@ If the source test fails, do not adjust the expected numbers blindly: inspect th
 - [ ] Every task has a failing test first, then implementation, then a passing run.
 - [ ] All file paths are exact and match the file-structure section.
 - [ ] `Chapter.parts`, `Scene` fields, and SQLite columns use the same names.
+- [ ] Volume reorder is tested with a non-file order (`丙→甲→乙`).
 - [ ] The parser does not assume file order equals story time; that is a later plan.
 - [ ] `花嫁(2).txt` is not committed.
