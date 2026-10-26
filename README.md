@@ -88,6 +88,11 @@ docs/superpowers/  design spec + plans
 - 场景分段：725 段已生成；向量/FTS 均已索引 121 scene + 703 segment。
 - attribution gold（44 条，2 个场景）：accuracy 0.500 / coverage 0.386 / precision 0.529。
 
+## 文档
+
+- [项目状态 / 交接](docs/STATUS.md)
+- [设计 spec](docs/superpowers/specs/2026-10-24-muwanhe-character-runtime-design.md)
+
 ## 已知问题
 
 - 第一场 14 条 gold 的 precision 是 0.889，扩到 44 条后掉到 0.529：多人物场景里 `我/她/孙淑怡` 的 cue 会互相抢话，strict 仍会把别人台词分给主角色。
@@ -96,3 +101,7 @@ docs/superpowers/  design spec + plans
 - 火山 Ark 账户当前欠费（403 `AccountOverdueError`），live chat 会返回 503；结算后恢复。
 - LLM 复核使用 `doubao-seed-2-0-mini` 时归属质量不足；DeepSeek 4.1 Flash 尚未开通。
 - API 支持 `stream=true` SSE；Web 页仍是一次性返回。
+
+## License
+
+MIT。仓库只包含引擎代码；原著文本、角色数据、向量索引和 key 由使用者本地提供。
