@@ -1,8 +1,13 @@
 import sqlite3
 
-from muwanhe.compiler.eval_retrieval import evaluate_retrieval
+from muwanhe.compiler.eval_retrieval import (
+    evaluate_retrieval,
+    evaluate_retrieval_fts,
+)
 from muwanhe.compiler.index import index_documents
 from muwanhe.storage.db import init_db
+from muwanhe.storage.extraction_db import init_extraction_db
+from muwanhe.storage.fts_store import init_fts_db, rebuild_fts
 from muwanhe.storage.vector_store import init_vector_db
 
 
@@ -19,6 +24,7 @@ class KeywordEmbedding:
 def _db() -> sqlite3.Connection:
     conn = sqlite3.connect(":memory:")
     init_db(conn)
+    init_extraction_db(conn)
     conn.execute(
         "INSERT INTO parse_runs (source, chars, lines, created_at) "
         "VALUES ('x', 1, 1, 'now')"
@@ -50,3 +56,14 @@ def test_retrieval_eval_top1():
     assert stats["scenes"] == 2
     assert stats["top1_rate"] == 1.0
     assert stats["top5_rate"] == 1.0
+
+
+def test_retrieval_eval_fts_top1():
+    conn = _db()
+    init_fts_db(conn)
+    rebuild_fts(conn)
+
+    stats = evaluate_retrieval_fts(conn, limit=2, top_k=5)
+
+    assert stats["scenes"] == 2
+    assert stats["top1_rate"] == 1.0

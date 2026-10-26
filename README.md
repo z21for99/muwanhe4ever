@@ -82,8 +82,8 @@ docs/superpowers/  design spec + plans
 
 ## 当前指标
 
-- 65 个单元测试通过。
-- scene 检索（20 场景 leave-one-out）：top1 0.85 / top5 0.90 / MRR 0.867。
+- 66 个单元测试通过。
+- scene 检索（20 场景 leave-one-out）：向量 top1 0.85 / top5 0.90；FTS exact-substring top1 1.0。
 - strict 对话：4,134 条；高精度沐婉荷台词 224 条（window=8）。
 - 场景分段：725 段已生成；FTS 已索引 121 scene + 703 segment。
 - attribution gold（14 条）：accuracy 0.571 / coverage 0.643 / precision 0.889。

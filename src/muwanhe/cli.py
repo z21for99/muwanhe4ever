@@ -10,7 +10,7 @@ import uvicorn
 
 from .api import create_app
 from .compiler.eval_attribution import evaluate_attribution, load_gold
-from .compiler.eval_retrieval import evaluate_retrieval
+from .compiler.eval_retrieval import evaluate_retrieval, evaluate_retrieval_fts
 from .compiler.extract import extract_scenes
 from .compiler.index import index_documents
 from .compiler.parse import parse_file
@@ -140,6 +140,11 @@ def build_parser() -> argparse.ArgumentParser:
     eval_retrieval.add_argument("--limit", type=int, default=20)
     eval_retrieval.add_argument("--top-k", type=int, default=5)
     eval_retrieval.add_argument("--model", default=None)
+    eval_retrieval.add_argument(
+        "--mode",
+        choices=["vector", "fts"],
+        default="vector",
+    )
 
     index_fts = sub.add_parser("index-fts", help="build the SQLite FTS5 index")
     index_fts.add_argument("--db", default="data/muwanhe.db")
@@ -407,6 +412,16 @@ def _serve(args: argparse.Namespace) -> int:
 
 
 def _eval_retrieval(args: argparse.Namespace) -> int:
+    if args.mode == "fts":
+        conn = sqlite3.connect(Path(args.db))
+        try:
+            init_fts_db(conn)
+            stats = evaluate_retrieval_fts(conn, args.limit, args.top_k)
+        finally:
+            conn.close()
+        print(json.dumps(stats, ensure_ascii=False, indent=2))
+        return 0
+
     try:
         settings = EmbeddingSettings.from_env()
     except LLMError as exc:
