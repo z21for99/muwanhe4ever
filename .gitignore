@@ -5,7 +5,7 @@
 
 # --- local source text & generated character data ---
 # 原著文本、角色包、向量索引都只留在本地，不进公开仓库
-/花嫁.txt
+/花嫁*.txt
 /data/
 
 # --- python ---
