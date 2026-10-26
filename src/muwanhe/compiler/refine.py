@@ -33,6 +33,19 @@ SYSTEM_PROMPT = """你是中文长篇小说的叙事分析器。只输出 JSON�
 """
 
 
+SEGMENTS_SYSTEM_PROMPT = """你是中文长篇小说的叙事分析器。只输出 JSON，不要解释。
+
+任务：把场景按时间、地点、在场人物或话题变化切分为 segments；行号使用输入中的编号。
+
+规则：
+- 只依据输入文本，不要根据“应该是”猜测；
+- 只输出 segments，不要输出 attributions。
+
+输出格式：
+{"segments":[{"start":0,"end":5,"summary":"...","location":"...","time":"...","participants":["baifengyuan","muwanhe"]}]}
+"""
+
+
 def _normalize_id(value: object, characters: list[Character]) -> str | None:
     if value is None:
         return None
@@ -67,6 +80,7 @@ def refine_attributions(
     llm: LLMProvider,
     model: str,
     limit: int | None = None,
+    segments_only: bool = False,
 ) -> dict:
     extraction_run = conn.execute("SELECT MAX(id) FROM extraction_runs").fetchone()[0]
     parse_run = conn.execute("SELECT MAX(id) FROM parse_runs").fetchone()[0]
@@ -74,15 +88,23 @@ def refine_attributions(
         return {"error": "missing parse or extraction run"}
 
     characters = load_characters(conn)
-    scene_rows = conn.execute(
-        "SELECT DISTINCT s.id, s.text, s.volume_index, s.chapter_index, s.scene_index "
-        "FROM utterances u "
-        "JOIN scenes s ON s.id = u.scene_id AND s.run_id = ? "
-        "WHERE u.run_id = ? AND u.method IN ('turn', 'unknown') "
-        "ORDER BY s.volume_index, s.chapter_index, s.scene_index "
-        "LIMIT ?",
-        (parse_run, extraction_run, limit if limit is not None else -1),
-    ).fetchall()
+    if segments_only:
+        scene_rows = conn.execute(
+            "SELECT id, text, volume_index, chapter_index, scene_index "
+            "FROM scenes WHERE run_id = ? "
+            "ORDER BY volume_index, chapter_index, scene_index LIMIT ?",
+            (parse_run, limit if limit is not None else -1),
+        ).fetchall()
+    else:
+        scene_rows = conn.execute(
+            "SELECT DISTINCT s.id, s.text, s.volume_index, s.chapter_index, s.scene_index "
+            "FROM utterances u "
+            "JOIN scenes s ON s.id = u.scene_id AND s.run_id = ? "
+            "WHERE u.run_id = ? AND u.method IN ('turn', 'unknown') "
+            "ORDER BY s.volume_index, s.chapter_index, s.scene_index "
+            "LIMIT ?",
+            (parse_run, extraction_run, limit if limit is not None else -1),
+        ).fetchall()
 
     llm_run_id = insert_llm_run(conn, model=model, scene_limit=limit, stats={})
     stats: dict = {
@@ -93,6 +115,7 @@ def refine_attributions(
         "segments": 0,
         "by_speaker": {},
         "errors": [],
+        "mode": "segments_only" if segments_only else "attribution",
     }
     speakers: Counter[str] = Counter()
 
@@ -102,30 +125,43 @@ def refine_attributions(
         if not lines:
             continue
 
-        utterances = conn.execute(
-            "SELECT id, text, speaker_id, method, confidence, context FROM utterances "
-            "WHERE scene_id = ? AND run_id = ? AND method IN ('turn', 'unknown') "
-            "ORDER BY quote_start LIMIT 60",
-            (scene_id, extraction_run),
-        ).fetchall()
-        if not utterances:
-            continue
+        if segments_only:
+            utterances = []
+        else:
+            utterances = conn.execute(
+                "SELECT id, text, speaker_id, method, confidence, context FROM utterances "
+                "WHERE scene_id = ? AND run_id = ? AND method IN ('turn', 'unknown') "
+                "ORDER BY quote_start LIMIT 60",
+                (scene_id, extraction_run),
+            ).fetchall()
+            if not utterances:
+                continue
 
         numbered = "\n".join(f"[{index}] {line}" for index, line in enumerate(lines))
-        quote_block = "\n".join(
-            f"- q{index}: {row[1].replace(chr(10), ' ')[:120]} | "
-            f"当前: {row[3]} -> {row[2] or 'unknown'} | "
-            f"上下文: {row[5].replace(chr(10), ' ')[:200]}"
-            for index, row in enumerate(utterances)
-        )
-        user_prompt = (
-            f"场景 {scene_id}，共 {len(lines)} 行：\n\n{numbered}\n\n"
-            f"低置信度引语：\n{quote_block}\n\n"
-            "请输出 segments 和 attributions。"
-        )
+        if segments_only:
+            user_prompt = (
+                f"场景 {scene_id}，共 {len(lines)} 行：\n\n{numbered}\n\n"
+                "请输出 segments。"
+            )
+            system_prompt = SEGMENTS_SYSTEM_PROMPT
+        else:
+            quote_block = "\n".join(
+                f"- q{index}: {row[1].replace(chr(10), ' ')[:120]} | "
+                f"当前: {row[3]} -> {row[2] or 'unknown'} | "
+                f"上下文: {row[5].replace(chr(10), ' ')[:200]}"
+                for index, row in enumerate(utterances)
+            )
+            user_prompt = (
+                f"场景 {scene_id}，共 {len(lines)} 行：\n\n{numbered}\n\n"
+                f"低置信度引语：\n{quote_block}\n\n"
+                "请输出 segments 和 attributions。"
+            )
+            system_prompt = SYSTEM_PROMPT
 
         try:
-            response = llm.complete_json(SYSTEM_PROMPT, user_prompt, max_tokens=6000)
+            response = llm.complete_json(
+                system_prompt, user_prompt, max_tokens=6000
+            )
         except Exception as exc:  # noqa: BLE001 - keep one bad scene from aborting the run
             stats["errors"].append(f"{scene_id}: {type(exc).__name__}: {exc}")
             continue

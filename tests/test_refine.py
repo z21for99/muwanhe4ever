@@ -105,3 +105,33 @@ def test_refine_updates_utterance_and_stores_segments():
     assert segment[1] == 0
     assert segment[2] == 1
     assert json.loads(segment[3]) == ["baifengyuan", "muwanhe"]
+
+
+def test_segments_only_skips_attribution():
+    conn = _refine_db()
+    fake = FakeLLM(
+        {
+            "segments": [
+                {
+                    "start": 0,
+                    "end": 1,
+                    "summary": "两人对话",
+                    "location": "家",
+                    "time": "晚上",
+                    "participants": ["baifengyuan", "muwanhe"],
+                }
+            ]
+        }
+    )
+
+    stats = refine_attributions(
+        conn, fake, "fake-model", limit=1, segments_only=True
+    )
+
+    assert stats["mode"] == "segments_only"
+    assert stats["updated"] == 0
+    assert stats["segments"] == 1
+    row = conn.execute(
+        "SELECT method FROM utterances WHERE id = 's1:q000'"
+    ).fetchone()
+    assert row == ("turn",)

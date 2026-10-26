@@ -69,6 +69,11 @@ def build_parser() -> argparse.ArgumentParser:
         help="max number of scenes to process",
     )
     refine.add_argument("--model", default=None, help="override LLM model")
+    refine.add_argument(
+        "--segments-only",
+        action="store_true",
+        help="only produce scene segments, do not update attributions",
+    )
 
     index = sub.add_parser("index", help="embed scenes/segments into the vector store")
     index.add_argument("--db", default="data/muwanhe.db", help="SQLite path")
@@ -202,6 +207,7 @@ def _refine(args: argparse.Namespace) -> int:
             OpenAICompatLLM(settings),
             settings.model,
             args.limit,
+            segments_only=args.segments_only,
         )
     finally:
         conn.close()
