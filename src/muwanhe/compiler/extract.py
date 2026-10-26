@@ -50,6 +50,7 @@ def extract_scenes(
     conn: sqlite3.Connection,
     characters: list[Character],
     limit: int | None = None,
+    strict: bool = False,
 ) -> tuple[list[Utterance], dict]:
     scenes = load_scenes(conn, limit)
     utterances: list[Utterance] = []
@@ -57,6 +58,8 @@ def extract_scenes(
     for scene in scenes:
         present = scene_present(scene.text)
         previous_speaker: str | None = None
+        active_pair: tuple[str, str] | None = None
+
         for index, quote in enumerate(extract_quotes(scene.text)):
             text = quote.text.strip()
             if not text:
@@ -68,23 +71,38 @@ def extract_scenes(
                 characters,
                 previous_speaker,
                 present,
+                active_pair,
             )
+            speaker = attribution.speaker_id
+            addressee = attribution.addressee_id
+            method = attribution.method
+            confidence = attribution.confidence
+
+            if strict and method not in ("cue", "voice", "vocative"):
+                speaker = None
+                addressee = None
+                method = "unverified"
+                confidence = 0.0
+
             utterance = Utterance(
                 id=f"{scene.id}:q{index:03d}",
                 scene_id=scene.id,
-                speaker_id=attribution.speaker_id,
-                addressee_id=attribution.addressee_id,
+                speaker_id=speaker,
+                addressee_id=addressee,
                 text=text,
                 context=_context(scene.text, quote.start, quote.end),
                 quote_start=quote.start,
                 quote_end=quote.end,
-                method=attribution.method,
-                confidence=attribution.confidence,
-                is_dialogue=attribution.speaker_id is not None,
+                method=method,
+                confidence=confidence,
+                is_dialogue=speaker is not None,
             )
             utterances.append(utterance)
-            if attribution.speaker_id:
-                previous_speaker = attribution.speaker_id
+
+            if speaker and addressee:
+                active_pair = (speaker, addressee)
+            if speaker:
+                previous_speaker = speaker
 
     by_speaker = Counter(item.speaker_id or "unknown" for item in utterances)
     by_method = Counter(item.method for item in utterances)

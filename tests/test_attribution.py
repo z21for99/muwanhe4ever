@@ -29,14 +29,11 @@ def test_cue_before_quote():
 
 def test_turn_taking():
     text = "“你好。”\n“你也好。”"
-    first, second = extract_quotes(text)
+    _first, second = extract_quotes(text)
     present = ["baifengyuan", "muwanhe"]
 
-    first_attribution = attribute_quote(
-        first, text, DEFAULT_CHARACTERS, None, present
-    )
     second_attribution = attribute_quote(
-        second, text, DEFAULT_CHARACTERS, first_attribution.speaker_id, present
+        second, text, DEFAULT_CHARACTERS, "baifengyuan", present
     )
 
     assert second_attribution.speaker_id == "muwanhe"
@@ -64,3 +61,36 @@ def test_father_cue():
     )
 
     assert attribution.speaker_id == "father"
+
+
+def test_voice_cue():
+    text = "“饭呢？”……父亲那公鸭嗓子般的声音……"
+    quote = extract_quotes(text)[0]
+
+    attribution = attribute_quote(
+        quote,
+        text,
+        DEFAULT_CHARACTERS,
+        None,
+        ["baifengyuan", "muwanhe", "father"],
+    )
+
+    assert attribution.speaker_id == "father"
+    assert attribution.method == "voice"
+
+
+def test_vocative():
+    text = "“儿子，你回来啦。”"
+    quote = extract_quotes(text)[0]
+
+    attribution = attribute_quote(
+        quote,
+        text,
+        DEFAULT_CHARACTERS,
+        None,
+        ["baifengyuan", "muwanhe"],
+    )
+
+    assert attribution.speaker_id == "muwanhe"
+    assert attribution.addressee_id == "baifengyuan"
+    assert attribution.method == "vocative"

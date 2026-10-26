@@ -41,6 +41,11 @@ def build_parser() -> argparse.ArgumentParser:
         default=None,
         help="max number of scenes to process",
     )
+    extract.add_argument(
+        "--strict",
+        action="store_true",
+        help="only keep cue/voice/vocative attributions; mark the rest unverified",
+    )
 
     refine = sub.add_parser(
         "refine",
@@ -100,7 +105,9 @@ def _extract(args: argparse.Namespace) -> int:
         init_extraction_db(conn)
         seed_characters(conn)
         characters = load_characters(conn)
-        utterances, stats = extract_scenes(conn, characters, args.limit)
+        utterances, stats = extract_scenes(
+            conn, characters, args.limit, strict=args.strict
+        )
         run_id = save_extraction(conn, utterances, stats, args.limit)
     finally:
         conn.close()

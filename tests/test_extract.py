@@ -10,7 +10,9 @@ from muwanhe.storage.extraction_db import (
 )
 
 
-def _scene_db() -> sqlite3.Connection:
+def _scene_db(
+    text: str = "“你好。”我说。\n她轻声道：“过来。”",
+) -> sqlite3.Connection:
     conn = sqlite3.connect(":memory:")
     init_db(conn)
     conn.execute(
@@ -31,7 +33,7 @@ def _scene_db() -> sqlite3.Connection:
             0,
             1,
             3,
-            "“你好。”我说。\n她轻声道：“过来。”",
+            text,
         ),
     )
     conn.commit()
@@ -57,3 +59,15 @@ def test_extract_and_save():
 
     assert run_id == 1
     assert conn.execute("SELECT COUNT(*) FROM utterances").fetchone()[0] == 2
+
+
+def test_strict_marks_unverified():
+    conn = _scene_db("“没有线索的引语。”")
+    characters = load_characters(conn)
+
+    utterances, stats = extract_scenes(conn, characters, strict=True)
+
+    assert len(utterances) == 1
+    assert utterances[0].speaker_id is None
+    assert utterances[0].method == "unverified"
+    assert stats["by_method"]["unverified"] == 1
