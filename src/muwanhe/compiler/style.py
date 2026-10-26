@@ -53,6 +53,7 @@ EXPLICIT_VERBS = (
     "低声",
 )
 VOICE_NAMES = ("母亲", "沐婉荷", "婉荷")
+NEGATIVE_ADDRESS_MARKERS = ("沐总", "沐姐", "婉荷姐")
 
 
 def _match(text: str, words: tuple[str, ...]) -> list[str]:
@@ -116,6 +117,13 @@ def tag_utterance(text: str, addressee_id: str | None) -> dict:
     }
 
 
+def _has_negative_address(text: str) -> bool:
+    stripped = text.strip()
+    if stripped.startswith(("妈，", "妈。", "妈？", "妈！")):
+        return True
+    return any(marker in stripped for marker in NEGATIVE_ADDRESS_MARKERS)
+
+
 def _is_explicit_cue(
     before: str,
     after: str,
@@ -141,6 +149,7 @@ def build_style_bank(
     conn: sqlite3.Connection,
     min_samples: int = 3,
     precision: bool = True,
+    window: int = 8,
 ) -> dict:
     row = conn.execute("SELECT MAX(id) FROM extraction_runs").fetchone()
     extraction_run = row[0] if row else None
@@ -166,11 +175,17 @@ def build_style_bank(
         rows = []
         for item in raw_rows:
             scene_text = item[6]
-            before = _local_before(scene_text, item[4], limit=20)
-            after = _local_after(scene_text, item[5], limit=20)
-            voice_before = _local_before(scene_text, item[4], limit=60)
-            voice_after = _local_after(scene_text, item[5], limit=40)
+            before = _local_before(scene_text, item[4], limit=window)
+            after = _local_after(scene_text, item[5], limit=window)
+            voice_before = _local_before(
+                scene_text, item[4], limit=max(window, 20)
+            )
+            voice_after = _local_after(
+                scene_text, item[5], limit=max(window, 20)
+            )
             if _is_explicit_cue(before, after, voice_before, voice_after):
+                if _has_negative_address(item[1]):
+                    continue
                 rows.append(item[:4])
     else:
         sql = (
@@ -254,4 +269,5 @@ def build_style_bank(
         "samples": samples,
         "by_emotion": dict(by_emotion),
         "precision": precision,
+        "window": window,
     }

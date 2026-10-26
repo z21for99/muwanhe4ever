@@ -80,13 +80,13 @@ docs/superpowers/  design spec + plans
 
 ## 当前指标
 
-- 52 个单元测试通过。
+- 53 个单元测试通过。
 - scene 检索（20 场景 leave-one-out）：top1 0.85 / top5 0.90 / MRR 0.867。
-- strict 对话：4,060 条；高精度沐婉荷台词 348 条。
+- strict 对话：4,060 条；高精度沐婉荷台词 224 条（window=8）。
 
 ## 已知问题
 
-- speaker 归属的 `turn` 比例仍高，strict 语料只有约 348 条高精度沐婉荷台词；style bank 仍需人工抽检。
+- speaker 归属的 `turn` 比例仍高，strict 语料只有约 224 条高精度沐婉荷台词；style bank 仍需人工抽检。
 - 场景切分目前是规则基线（分隔符），不是语义切分。
 - LLM 复核使用 `doubao-seed-2-0-mini` 时归属质量不足；DeepSeek 4.1 Flash 尚未开通。
 - API 暂不支持流式；Web 页是一次性返回。

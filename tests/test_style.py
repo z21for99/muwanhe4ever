@@ -1,6 +1,11 @@
 import sqlite3
 
-from muwanhe.compiler.style import _is_explicit_cue, build_style_bank, tag_utterance
+from muwanhe.compiler.style import (
+    _has_negative_address,
+    _is_explicit_cue,
+    build_style_bank,
+    tag_utterance,
+)
 from muwanhe.storage.extraction_db import init_extraction_db
 
 
@@ -64,3 +69,9 @@ def test_is_explicit_cue():
     assert _is_explicit_cue("母亲说：", "", "", "")
     assert not _is_explicit_cue("她轻声说：", "", "", "")
     assert _is_explicit_cue("", "", "母亲的声音", "")
+
+
+def test_negative_address():
+    assert _has_negative_address("妈，你会生气么？")
+    assert _has_negative_address("不好意思啊，沐总。")
+    assert not _has_negative_address("妈妈没事。")

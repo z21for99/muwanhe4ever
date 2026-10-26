@@ -99,6 +99,12 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="include vocative and all cue methods (lower precision)",
     )
+    style.add_argument(
+        "--window",
+        type=int,
+        default=8,
+        help="adjacent cue window in characters",
+    )
 
     chat = sub.add_parser("chat", help="one-shot character reply")
     chat.add_argument("--db", default="data/muwanhe.db", help="SQLite path")
@@ -277,6 +283,7 @@ def _style(args: argparse.Namespace) -> int:
             conn,
             args.min_samples,
             precision=not args.all,
+            window=args.window,
         )
     finally:
         conn.close()
