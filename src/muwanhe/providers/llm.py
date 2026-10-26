@@ -71,6 +71,12 @@ class LLMProvider(Protocol):
         max_tokens: int = 4096,
     ) -> dict | list: ...
 
+    def complete(
+        self,
+        messages: list[dict],
+        max_tokens: int = 1024,
+    ) -> str: ...
+
 
 class OpenAICompatLLM:
     def __init__(self, settings: LLMSettings):
@@ -111,11 +117,33 @@ class OpenAICompatLLM:
         except Exception as exc:
             raise LLMError(f"invalid JSON from model: {content[:300]}") from exc
 
+    def complete(
+        self,
+        messages: list[dict],
+        max_tokens: int = 1024,
+    ) -> str:
+        payload = {
+            "model": self.settings.model,
+            "messages": messages,
+            "temperature": self.settings.temperature,
+            "max_tokens": max_tokens,
+        }
+        try:
+            response = self.client.chat.completions.create(
+                **payload,
+                extra_body={"thinking": {"type": "disabled"}},
+            )
+        except BadRequestError:
+            response = self.client.chat.completions.create(**payload)
+        return response.choices[0].message.content or ""
+
 
 class FakeLLM:
-    def __init__(self, response: dict | list):
-        self.response = response
+    def __init__(self, response: dict | list | None = None, text: str = "fake reply"):
+        self.response = response if response is not None else {}
+        self.text = text
         self.calls: list[tuple[str, str]] = []
+        self.chat_calls: list[list[dict]] = []
 
     def complete_json(
         self,
@@ -125,3 +153,11 @@ class FakeLLM:
     ) -> dict | list:
         self.calls.append((system, user))
         return self.response
+
+    def complete(
+        self,
+        messages: list[dict],
+        max_tokens: int = 1024,
+    ) -> str:
+        self.chat_calls.append(messages)
+        return self.text

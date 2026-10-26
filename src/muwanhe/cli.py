@@ -14,6 +14,7 @@ from .compiler.scenes import build_scenes
 from .compiler.style import build_style_bank
 from .providers.embedding import EmbeddingSettings, QwenEmbeddingProvider
 from .providers.llm import LLMError, LLMSettings, OpenAICompatLLM
+from .runtime.engine import CharacterEngine
 from .storage.db import init_db, save_parse_result
 from .storage.extraction_db import (
     init_extraction_db,
@@ -94,6 +95,13 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="include vocative and all cue methods (lower precision)",
     )
+
+    chat = sub.add_parser("chat", help="one-shot character reply")
+    chat.add_argument("--db", default="data/muwanhe.db", help="SQLite path")
+    chat.add_argument("--message", required=True)
+    chat.add_argument("--model", default=None, help="override LLM model")
+    chat.add_argument("--top-k", type=int, default=3)
+    chat.add_argument("--style-limit", type=int, default=5)
     return parser
 
 
@@ -258,6 +266,35 @@ def _style(args: argparse.Namespace) -> int:
     return 0
 
 
+def _chat(args: argparse.Namespace) -> int:
+    try:
+        llm_settings = LLMSettings.from_env()
+        embedding_settings = EmbeddingSettings.from_env()
+    except LLMError as exc:
+        print(json.dumps({"error": str(exc)}, ensure_ascii=False))
+        return 2
+    if args.model:
+        llm_settings = replace(llm_settings, model=args.model)
+
+    conn = sqlite3.connect(Path(args.db))
+    try:
+        init_extraction_db(conn)
+        init_vector_db(conn)
+        engine = CharacterEngine(
+            conn,
+            OpenAICompatLLM(llm_settings),
+            QwenEmbeddingProvider(embedding_settings),
+            top_k=args.top_k,
+            style_limit=args.style_limit,
+        )
+        reply = engine.reply(args.message)
+    finally:
+        conn.close()
+
+    print(reply)
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     if args.command == "parse":
@@ -272,6 +309,8 @@ def main(argv: list[str] | None = None) -> int:
         return _search(args)
     if args.command == "style":
         return _style(args)
+    if args.command == "chat":
+        return _chat(args)
     return 1
 
 
