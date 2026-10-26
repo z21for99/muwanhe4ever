@@ -37,16 +37,17 @@ def build_segment_documents(
     conn: sqlite3.Connection,
     limit: int | None = None,
 ) -> list[dict]:
-    row = conn.execute("SELECT MAX(id) FROM llm_runs").fetchone()
-    if not row or row[0] is None:
-        return []
-
-    llm_run_id = row[0]
     sql = (
-        "SELECT id, scene_id, text, summary FROM segments "
-        "WHERE llm_run_id = ? ORDER BY scene_id, segment_index"
+        "SELECT s.id, s.scene_id, s.text, s.summary "
+        "FROM segments s "
+        "JOIN ("
+        "  SELECT scene_id, MAX(llm_run_id) AS latest_run "
+        "  FROM segments GROUP BY scene_id"
+        ") latest "
+        "ON s.scene_id = latest.scene_id AND s.llm_run_id = latest.latest_run "
+        "ORDER BY s.scene_id, s.segment_index"
     )
-    params: list[object] = [llm_run_id]
+    params: list[object] = []
     if limit is not None:
         sql += " LIMIT ?"
         params.append(limit)

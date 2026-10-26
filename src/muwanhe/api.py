@@ -1,11 +1,12 @@
 from __future__ import annotations
 
+import json
 import time
 import uuid
 from typing import Any, Protocol
 
 from fastapi import FastAPI, HTTPException
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, StreamingResponse
 from pydantic import BaseModel
 
 from .web import INDEX_HTML
@@ -24,6 +25,28 @@ class ReplyEngine(Protocol):
         user_message: str,
         history: list[dict] | None = None,
     ) -> str: ...
+
+
+def _chunk(
+    completion_id: str,
+    created: int,
+    content: str,
+    finish_reason: str | None = None,
+) -> str:
+    payload = {
+        "id": completion_id,
+        "object": "chat.completion.chunk",
+        "created": created,
+        "model": "muwanhe",
+        "choices": [
+            {
+                "index": 0,
+                "delta": {"content": content} if content else {},
+                "finish_reason": finish_reason,
+            }
+        ],
+    }
+    return f"data: {json.dumps(payload, ensure_ascii=False)}\n\n"
 
 
 def create_app(engine: ReplyEngine) -> FastAPI:
@@ -51,9 +74,7 @@ def create_app(engine: ReplyEngine) -> FastAPI:
         }
 
     @app.post("/v1/chat/completions")
-    def chat(request: ChatRequest) -> dict:
-        if request.stream:
-            raise HTTPException(status_code=400, detail="streaming not implemented yet")
+    def chat(request: ChatRequest) -> Any:
         if not request.messages:
             raise HTTPException(status_code=400, detail="messages is empty")
 
@@ -65,10 +86,25 @@ def create_app(engine: ReplyEngine) -> FastAPI:
             and message.get("content")
         ]
         reply = engine.reply(str(user_message), history)
+        completion_id = f"chatcmpl-{uuid.uuid4().hex}"
+        created = int(time.time())
+
+        if request.stream:
+            def generate():
+                for start in range(0, len(reply), 4):
+                    yield _chunk(completion_id, created, reply[start : start + 4])
+                yield _chunk(completion_id, created, "", "stop")
+                yield "data: [DONE]\n\n"
+
+            return StreamingResponse(
+                generate(),
+                media_type="text/event-stream",
+            )
+
         return {
-            "id": f"chatcmpl-{uuid.uuid4().hex}",
+            "id": completion_id,
             "object": "chat.completion",
-            "created": int(time.time()),
+            "created": created,
             "model": "muwanhe",
             "choices": [
                 {

@@ -16,7 +16,11 @@ from .compiler.parse import parse_file
 from .compiler.refine import refine_attributions
 from .compiler.scenes import build_scenes
 from .compiler.style import build_style_bank
-from .providers.embedding import EmbeddingSettings, QwenEmbeddingProvider
+from .providers.embedding import (
+    EmbeddingError,
+    EmbeddingSettings,
+    QwenEmbeddingProvider,
+)
 from .providers.llm import LLMError, LLMSettings, OpenAICompatLLM
 from .runtime.engine import CharacterEngine
 from .storage.db import init_db, save_parse_result
@@ -74,6 +78,7 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="only produce scene segments, do not update attributions",
     )
+    refine.add_argument("--offset", type=int, default=0)
 
     index = sub.add_parser("index", help="embed scenes/segments into the vector store")
     index.add_argument("--db", default="data/muwanhe.db", help="SQLite path")
@@ -208,6 +213,7 @@ def _refine(args: argparse.Namespace) -> int:
             settings.model,
             args.limit,
             segments_only=args.segments_only,
+            offset=args.offset,
         )
     finally:
         conn.close()
@@ -239,6 +245,9 @@ def _index(args: argparse.Namespace) -> int:
             kinds,
             args.limit,
         )
+    except EmbeddingError as exc:
+        print(json.dumps({"error": str(exc)}, ensure_ascii=False))
+        return 2
     finally:
         conn.close()
 
@@ -257,7 +266,11 @@ def _search(args: argparse.Namespace) -> int:
     try:
         init_vector_db(conn)
         provider = QwenEmbeddingProvider(settings)
-        vector = provider.embed([args.query])[0]
+        try:
+            vector = provider.embed([args.query])[0]
+        except EmbeddingError as exc:
+            print(json.dumps({"error": str(exc)}, ensure_ascii=False))
+            return 2
         hits = search_embeddings(conn, vector, args.kind, args.top_k)
     finally:
         conn.close()
@@ -325,7 +338,11 @@ def _chat(args: argparse.Namespace) -> int:
             style_limit=args.style_limit,
             profile_path=_profile_path(),
         )
-        reply = engine.reply(args.message)
+        try:
+            reply = engine.reply(args.message)
+        except EmbeddingError as exc:
+            print(json.dumps({"error": str(exc)}, ensure_ascii=False))
+            return 2
     finally:
         conn.close()
 
@@ -374,6 +391,9 @@ def _eval_retrieval(args: argparse.Namespace) -> int:
             args.limit,
             args.top_k,
         )
+    except EmbeddingError as exc:
+        print(json.dumps({"error": str(exc)}, ensure_ascii=False))
+        return 2
     finally:
         conn.close()
 

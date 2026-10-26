@@ -81,6 +81,7 @@ def refine_attributions(
     model: str,
     limit: int | None = None,
     segments_only: bool = False,
+    offset: int = 0,
 ) -> dict:
     extraction_run = conn.execute("SELECT MAX(id) FROM extraction_runs").fetchone()[0]
     parse_run = conn.execute("SELECT MAX(id) FROM parse_runs").fetchone()[0]
@@ -92,8 +93,12 @@ def refine_attributions(
         scene_rows = conn.execute(
             "SELECT id, text, volume_index, chapter_index, scene_index "
             "FROM scenes WHERE run_id = ? "
-            "ORDER BY volume_index, chapter_index, scene_index LIMIT ?",
-            (parse_run, limit if limit is not None else -1),
+            "ORDER BY volume_index, chapter_index, scene_index LIMIT ? OFFSET ?",
+            (
+                parse_run,
+                limit if limit is not None else -1,
+                offset,
+            ),
         ).fetchall()
     else:
         scene_rows = conn.execute(
@@ -102,8 +107,13 @@ def refine_attributions(
             "JOIN scenes s ON s.id = u.scene_id AND s.run_id = ? "
             "WHERE u.run_id = ? AND u.method IN ('turn', 'unknown') "
             "ORDER BY s.volume_index, s.chapter_index, s.scene_index "
-            "LIMIT ?",
-            (parse_run, extraction_run, limit if limit is not None else -1),
+            "LIMIT ? OFFSET ?",
+            (
+                parse_run,
+                extraction_run,
+                limit if limit is not None else -1,
+                offset,
+            ),
         ).fetchall()
 
     llm_run_id = insert_llm_run(conn, model=model, scene_limit=limit, stats={})
@@ -116,6 +126,7 @@ def refine_attributions(
         "by_speaker": {},
         "errors": [],
         "mode": "segments_only" if segments_only else "attribution",
+        "offset": offset,
     }
     speakers: Counter[str] = Counter()
 

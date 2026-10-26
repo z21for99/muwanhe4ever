@@ -4,9 +4,13 @@ import os
 from dataclasses import dataclass
 from typing import Protocol
 
-from openai import OpenAI
+from openai import APIStatusError, OpenAI, RateLimitError
 
 from .llm import LLMError, load_env_file
+
+
+class EmbeddingError(RuntimeError):
+    pass
 
 
 @dataclass(frozen=True)
@@ -59,12 +63,22 @@ class QwenEmbeddingProvider:
         vectors: list[list[float]] = []
         for start in range(0, len(texts), 20):
             batch = texts[start : start + 20]
-            response = self.client.embeddings.create(
-                model=self.settings.model,
-                input=batch,
-                dimensions=self.settings.dimensions,
-                encoding_format="float",
-            )
+            try:
+                response = self.client.embeddings.create(
+                    model=self.settings.model,
+                    input=batch,
+                    dimensions=self.settings.dimensions,
+                    encoding_format="float",
+                )
+            except RateLimitError as exc:
+                raise EmbeddingError(
+                    "Qwen embedding quota/rate limit exceeded; "
+                    "enable billing or wait for the quota to reset"
+                ) from exc
+            except APIStatusError as exc:
+                raise EmbeddingError(
+                    f"Qwen embedding API error: HTTP {exc.status_code}"
+                ) from exc
             vectors.extend(item.embedding for item in response.data)
         return vectors
 

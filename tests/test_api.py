@@ -41,3 +41,23 @@ def test_web_page():
     assert response.status_code == 200
     assert "沐婉荷" in response.text
     assert "/v1/chat/completions" in response.text
+
+
+def test_streaming_chat():
+    client = TestClient(create_app(FakeEngine()))
+
+    with client.stream(
+        "POST",
+        "/v1/chat/completions",
+        json={
+            "model": "muwanhe",
+            "messages": [{"role": "user", "content": "我回来了"}],
+            "stream": True,
+        },
+    ) as response:
+        body = "".join(response.iter_text())
+
+    assert response.status_code == 200
+    assert "data: " in body
+    assert "[DONE]" in body
+    assert "echo" in body
