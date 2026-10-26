@@ -77,6 +77,18 @@ def create_app(
             ],
         }
 
+    @app.get("/api/session/{session_id}")
+    def get_session(session_id: str) -> dict:
+        if sessions is None:
+            return {"messages": []}
+        return {"messages": sessions.history(session_id)}
+
+    @app.delete("/api/session/{session_id}")
+    def clear_session(session_id: str) -> dict:
+        if sessions:
+            sessions.clear(session_id)
+        return {"ok": True}
+
     @app.post("/v1/chat/completions")
     def chat(request: ChatRequest) -> Any:
         if not request.messages:

@@ -166,6 +166,7 @@ load_state → route_intent → plan_retrieval
 - `POST /v1/chat/completions`：OpenAI 兼容；`user` = 本地用户 ID；支持 `stream=true`。
 - `GET /v1/models`：返回 `muwanhe`。
 - 本地管理接口：`GET /api/character`、`POST /api/compile`、`GET /api/debug/last-context`。
+- 会话接口：`GET /api/session/{id}`、`DELETE /api/session/{id}`。
 - Web：`/` 聊天页；`/debug` 显示检索证据、style mode、token 预算、critic 结果。
 - IM：用户在 AstrBot / LangBot / NoneBot 里把 provider 指向本地服务即可；仓库只给示例，不绑定平台。
 

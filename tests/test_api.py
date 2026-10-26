@@ -102,3 +102,25 @@ def test_session_history_is_reused():
         {"role": "user", "content": "A"},
         {"role": "assistant", "content": "reply:A"},
     ]
+
+
+def test_session_endpoints():
+    conn = sqlite3.connect(":memory:", check_same_thread=False)
+    init_session_db(conn)
+    client = TestClient(create_app(FakeEngine(), sessions=SessionStore(conn)))
+
+    client.post(
+        "/v1/chat/completions",
+        json={
+            "model": "muwanhe",
+            "user": "u2",
+            "messages": [{"role": "user", "content": "A"}],
+        },
+    )
+
+    messages = client.get("/api/session/u2").json()["messages"]
+    assert messages[0]["content"] == "A"
+    assert messages[1]["content"] == "echo:A"
+
+    assert client.delete("/api/session/u2").json() == {"ok": True}
+    assert client.get("/api/session/u2").json()["messages"] == []

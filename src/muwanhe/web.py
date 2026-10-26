@@ -44,7 +44,7 @@ INDEX_HTML = """<!doctype html>
   </form>
 </div>
 <script>
-const messages = [];
+const USER_ID = 'web-local';
 const empty = document.getElementById('empty');
 const list = document.getElementById('messages');
 const form = document.getElementById('form');
@@ -69,7 +69,6 @@ form.addEventListener('submit', async (event) => {
   if (empty) empty.remove();
   input.value = '';
   send.disabled = true;
-  messages.push({ role: 'user', content: text });
   bubble('user', text);
 
   const pending = document.createElement('div');
@@ -85,12 +84,15 @@ form.addEventListener('submit', async (event) => {
     const response = await fetch('/v1/chat/completions', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ model: 'muwanhe', messages })
+      body: JSON.stringify({
+        model: 'muwanhe',
+        user: USER_ID,
+        messages: [{ role: 'user', content: text }]
+      })
     });
     const data = await response.json();
     const reply = data.choices?.[0]?.message?.content || '（她沉默了一会儿）';
     pendingBubble.textContent = reply;
-    messages.push({ role: 'assistant', content: reply });
   } catch (error) {
     pendingBubble.textContent = '（她没听清，再说一遍？）';
   } finally {
@@ -99,6 +101,22 @@ form.addEventListener('submit', async (event) => {
     list.scrollTop = list.scrollHeight;
   }
 });
+
+async function loadHistory() {
+  try {
+    const response = await fetch(`/api/session/${USER_ID}`);
+    const data = await response.json();
+    if (!data.messages || !data.messages.length) return;
+    if (empty) empty.remove();
+    for (const message of data.messages) {
+      bubble(message.role, message.content);
+    }
+  } catch (error) {
+    // 首次打开或后端不可用时保持空状态
+  }
+}
+
+loadHistory();
 </script>
 </body>
 </html>

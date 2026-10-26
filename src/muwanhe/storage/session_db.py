@@ -64,3 +64,9 @@ class SessionStore:
     ) -> None:
         self.append(session_id, "user", user_message)
         self.append(session_id, "assistant", assistant_message)
+
+    def clear(self, session_id: str) -> None:
+        self.conn.execute(
+            "DELETE FROM turns WHERE session_id = ?", (session_id,)
+        )
+        self.conn.commit()
