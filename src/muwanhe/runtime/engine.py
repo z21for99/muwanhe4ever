@@ -3,8 +3,9 @@ from __future__ import annotations
 import sqlite3
 from pathlib import Path
 
-from ..providers.embedding import EmbeddingProvider
+from ..providers.embedding import EmbeddingError, EmbeddingProvider
 from ..providers.llm import LLMProvider
+from ..storage.fts_store import search_fts
 from ..storage.vector_store import search
 from .prompt import CHARACTER_CORE, build_messages
 
@@ -42,13 +43,34 @@ class CharacterEngine:
             for row in rows
         ]
 
+    def _retrieve(self, user_message: str) -> list:
+        vector_hits = []
+        try:
+            vector = self.embedder.embed([user_message])[0]
+            vector_hits = search(self.conn, vector, top_k=self.top_k)
+        except EmbeddingError:
+            vector_hits = []
+
+        try:
+            fts_hits = search_fts(self.conn, user_message, top_k=self.top_k)
+        except sqlite3.OperationalError:
+            fts_hits = []
+
+        seen: set[str] = set()
+        hits = []
+        for hit in vector_hits + fts_hits:
+            if hit.id in seen:
+                continue
+            seen.add(hit.id)
+            hits.append(hit)
+        return hits[: self.top_k]
+
     def reply(
         self,
         user_message: str,
         history: list[dict] | None = None,
     ) -> str:
-        vector = self.embedder.embed([user_message])[0]
-        hits = search(self.conn, vector, top_k=self.top_k)
+        hits = self._retrieve(user_message)
         messages = build_messages(
             CHARACTER_CORE,
             self._load_style_samples(),

@@ -8,7 +8,7 @@
 
 - 解析长篇小说：卷 / 章 / 分节 / 场景（支持乱序卷重排）
 - 提取引号对话并做规则归属：cue / voice / vocative，其余标 `unverified`
-- 场景 + 分节的向量索引、语义检索
+- 场景 + 分节的向量索引、语义检索；FTS5 trigram 关键词兜底（embedding 配额用尽也能检索）
 - 从高置信度对话里构建 style bank（风格样本）
 - 本地角色引擎：检索原著片段 + style bank + 角色核心 → LLM
 - 服务端 session 记忆：OpenAI 请求里的 `user` 作为 session key，自动保存多轮 history
@@ -82,14 +82,14 @@ docs/superpowers/  design spec + plans
 
 ## 当前指标
 
-- 57 个单元测试通过。
+- 59 个单元测试通过。
 - scene 检索（20 场景 leave-one-out）：top1 0.85 / top5 0.90 / MRR 0.867。
 - strict 对话：4,060 条；高精度沐婉荷台词 224 条（window=8）。
-- 场景分段：725 段已生成；已索引 68 段（Qwen embedding 配额限制）。
+- 场景分段：725 段已生成；FTS 已索引 121 scene + 703 segment。
 
 ## 已知问题
 
 - speaker 归属的 `turn` 比例仍高，strict 语料只有约 224 条高精度沐婉荷台词；style bank 仍需人工抽检。
-- 场景细分已覆盖全量，但剩余 657 段还没 embedding；Qwen 免费额度用尽时会 429，需要开通计费或换本地 BGE-M3。
+- 向量索引只覆盖 121 scene + 68 segment；剩余 657 段用 FTS5 关键词兜底，语义检索需等 Qwen 额度或本地 BGE-M3。
 - LLM 复核使用 `doubao-seed-2-0-mini` 时归属质量不足；DeepSeek 4.1 Flash 尚未开通。
 - API 支持 `stream=true` SSE；Web 页仍是一次性返回。

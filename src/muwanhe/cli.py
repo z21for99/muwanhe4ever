@@ -30,6 +30,7 @@ from .storage.extraction_db import (
     save_extraction,
     seed_characters,
 )
+from .storage.fts_store import init_fts_db, rebuild_fts, search_fts
 from .storage.session_db import SessionStore, init_session_db
 from .storage.vector_store import init_vector_db
 from .storage.vector_store import search as search_embeddings
@@ -138,6 +139,19 @@ def build_parser() -> argparse.ArgumentParser:
     eval_retrieval.add_argument("--limit", type=int, default=20)
     eval_retrieval.add_argument("--top-k", type=int, default=5)
     eval_retrieval.add_argument("--model", default=None)
+
+    index_fts = sub.add_parser("index-fts", help="build the SQLite FTS5 index")
+    index_fts.add_argument("--db", default="data/muwanhe.db")
+
+    search_fts_cmd = sub.add_parser("search-fts", help="keyword search over FTS5")
+    search_fts_cmd.add_argument("--db", default="data/muwanhe.db")
+    search_fts_cmd.add_argument("--query", required=True)
+    search_fts_cmd.add_argument(
+        "--kind",
+        choices=["scene", "segment"],
+        default=None,
+    )
+    search_fts_cmd.add_argument("--top-k", type=int, default=5)
     return parser
 
 
@@ -331,6 +345,7 @@ def _chat(args: argparse.Namespace) -> int:
     try:
         init_extraction_db(conn)
         init_vector_db(conn)
+        init_fts_db(conn)
         engine = CharacterEngine(
             conn,
             OpenAICompatLLM(llm_settings),
@@ -364,6 +379,7 @@ def _serve(args: argparse.Namespace) -> int:
     conn = sqlite3.connect(Path(args.db), check_same_thread=False)
     init_extraction_db(conn)
     init_vector_db(conn)
+    init_fts_db(conn)
     init_session_db(conn)
     engine = CharacterEngine(
         conn,
@@ -407,6 +423,46 @@ def _eval_retrieval(args: argparse.Namespace) -> int:
     return 0
 
 
+def _index_fts(args: argparse.Namespace) -> int:
+    conn = sqlite3.connect(Path(args.db))
+    try:
+        init_extraction_db(conn)
+        init_fts_db(conn)
+        stats = rebuild_fts(conn)
+    finally:
+        conn.close()
+
+    print(json.dumps(stats, ensure_ascii=False, indent=2))
+    return 0
+
+
+def _search_fts(args: argparse.Namespace) -> int:
+    conn = sqlite3.connect(Path(args.db))
+    try:
+        init_fts_db(conn)
+        hits = search_fts(conn, args.query, args.kind, args.top_k)
+    finally:
+        conn.close()
+
+    print(
+        json.dumps(
+            [
+                {
+                    "id": hit.id,
+                    "kind": hit.kind,
+                    "ref_id": hit.ref_id,
+                    "score": hit.score,
+                    "text": hit.text[:200],
+                }
+                for hit in hits
+            ],
+            ensure_ascii=False,
+            indent=2,
+        )
+    )
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     if args.command == "parse":
@@ -427,6 +483,10 @@ def main(argv: list[str] | None = None) -> int:
         return _serve(args)
     if args.command == "eval-retrieval":
         return _eval_retrieval(args)
+    if args.command == "index-fts":
+        return _index_fts(args)
+    if args.command == "search-fts":
+        return _search_fts(args)
     return 1
 
 

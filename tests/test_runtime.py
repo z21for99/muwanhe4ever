@@ -1,9 +1,10 @@
 import sqlite3
 
-from muwanhe.providers.embedding import FakeEmbeddingProvider
+from muwanhe.providers.embedding import EmbeddingError, FakeEmbeddingProvider
 from muwanhe.providers.llm import FakeLLM
 from muwanhe.runtime.engine import CharacterEngine
 from muwanhe.storage.extraction_db import init_extraction_db
+from muwanhe.storage.fts_store import init_fts_db
 from muwanhe.storage.vector_store import (
     EmbeddingRecord,
     init_vector_db,
@@ -54,3 +55,30 @@ def test_engine_reply_uses_style_and_evidence(tmp_path):
     assert "雨夜" in system
     assert "吃饭了吗？" in system
     assert "她怕黑。" in system
+
+
+class BrokenEmbedder:
+    dimensions = 4
+
+    def embed(self, texts: list[str]) -> list[list[float]]:
+        raise EmbeddingError("quota exhausted")
+
+
+def test_engine_falls_back_to_fts():
+    conn = sqlite3.connect(":memory:")
+    init_extraction_db(conn)
+    init_fts_db(conn)
+    conn.execute(
+        "INSERT INTO docs_fts (doc_id, kind, ref_id, text) "
+        "VALUES (?, ?, ?, ?)",
+        ("scene:s1", "scene", "s1", "雨夜回家"),
+    )
+    conn.commit()
+
+    llm = FakeLLM(text="妈在呢。")
+    engine = CharacterEngine(conn, llm, BrokenEmbedder())
+
+    reply = engine.reply("雨夜")
+
+    assert reply == "妈在呢。"
+    assert "雨夜回家" in llm.chat_calls[0][0]["content"]

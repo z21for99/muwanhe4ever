@@ -187,7 +187,7 @@ load_state → route_intent → plan_retrieval
 
 - Python 3.11、FastAPI、Pydantic v2、SQLite（WAL）、FTS5。
 - 向量：v1 先用 SQLite `embeddings` 表 + Python cosine（<10k 文档足够）；`VectorStore` 接口保留，后续可换 LanceDB/Qdrant local。
-- CLI：`parse / extract / refine / index / search / style / chat / serve / eval-retrieval`。
+- CLI：`parse / extract / refine / index / search / index-fts / search-fts / style / chat / serve / eval-retrieval`。
 - 编排：LangGraph；provider 层可用 LangChain 适配。
 - LLM：OpenAI 兼容；测试用 DeepSeek 4.1 Flash（待开通）。
 - Embedding：默认 Qwen `qwen3.7-text-embedding-flash`（1024 维，OpenAI 兼容，已验证）；可选 `qwen3.7-text-embedding`（2560 维，质量更高）；火山 Ark 作为可选；本地 BGE-M3 兜底。
