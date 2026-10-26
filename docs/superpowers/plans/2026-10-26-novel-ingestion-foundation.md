@@ -101,6 +101,9 @@ dev = ["pytest>=8.0", "ruff>=0.6"]
 requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
 
+[tool.setuptools]
+package-dir = {"" = "src"}
+
 [tool.setuptools.packages.find]
 where = ["src"]
 
