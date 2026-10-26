@@ -10,6 +10,7 @@ from fastapi.responses import HTMLResponse, StreamingResponse
 from pydantic import BaseModel
 
 from .web import INDEX_HTML
+from .storage.session_db import SessionStore
 
 
 class ChatRequest(BaseModel):
@@ -49,7 +50,10 @@ def _chunk(
     return f"data: {json.dumps(payload, ensure_ascii=False)}\n\n"
 
 
-def create_app(engine: ReplyEngine) -> FastAPI:
+def create_app(
+    engine: ReplyEngine,
+    sessions: SessionStore | None = None,
+) -> FastAPI:
     app = FastAPI(title="muwanhe", version="0.1.0")
 
     @app.get("/health")
@@ -79,13 +83,20 @@ def create_app(engine: ReplyEngine) -> FastAPI:
             raise HTTPException(status_code=400, detail="messages is empty")
 
         user_message = request.messages[-1].get("content", "")
-        history = [
+        client_history = [
             {"role": message.get("role"), "content": message.get("content")}
             for message in request.messages[:-1]
             if message.get("role") in ("user", "assistant")
             and message.get("content")
         ]
+        session_id = request.user or "local"
+        if sessions and not client_history:
+            history = sessions.history(session_id)
+        else:
+            history = client_history
         reply = engine.reply(str(user_message), history)
+        if sessions:
+            sessions.append_exchange(session_id, str(user_message), reply)
         completion_id = f"chatcmpl-{uuid.uuid4().hex}"
         created = int(time.time())
 

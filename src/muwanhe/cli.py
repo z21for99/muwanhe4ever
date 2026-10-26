@@ -30,6 +30,7 @@ from .storage.extraction_db import (
     save_extraction,
     seed_characters,
 )
+from .storage.session_db import SessionStore, init_session_db
 from .storage.vector_store import init_vector_db
 from .storage.vector_store import search as search_embeddings
 
@@ -363,13 +364,18 @@ def _serve(args: argparse.Namespace) -> int:
     conn = sqlite3.connect(Path(args.db), check_same_thread=False)
     init_extraction_db(conn)
     init_vector_db(conn)
+    init_session_db(conn)
     engine = CharacterEngine(
         conn,
         OpenAICompatLLM(llm_settings),
         QwenEmbeddingProvider(embedding_settings),
         profile_path=_profile_path(),
     )
-    uvicorn.run(create_app(engine), host=args.host, port=args.port)
+    uvicorn.run(
+        create_app(engine, sessions=SessionStore(conn)),
+        host=args.host,
+        port=args.port,
+    )
     return 0
 
 

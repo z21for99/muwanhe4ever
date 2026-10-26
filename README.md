@@ -11,7 +11,8 @@
 - 场景 + 分节的向量索引、语义检索
 - 从高置信度对话里构建 style bank（风格样本）
 - 本地角色引擎：检索原著片段 + style bank + 角色核心 → LLM
-- OpenAI 兼容 `/v1/chat/completions`，以及一个本地 Web 聊天页
+- 服务端 session 记忆：OpenAI 请求里的 `user` 作为 session key，自动保存多轮 history
+- OpenAI 兼容 `/v1/chat/completions`（支持 `stream=true`），以及一个本地 Web 聊天页
 
 ## 快速开始
 
@@ -81,7 +82,7 @@ docs/superpowers/  design spec + plans
 
 ## 当前指标
 
-- 55 个单元测试通过。
+- 57 个单元测试通过。
 - scene 检索（20 场景 leave-one-out）：top1 0.85 / top5 0.90 / MRR 0.867。
 - strict 对话：4,060 条；高精度沐婉荷台词 224 条（window=8）。
 - 场景分段：725 段已生成；已索引 68 段（Qwen embedding 配额限制）。

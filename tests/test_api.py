@@ -1,11 +1,23 @@
+import sqlite3
+
 from fastapi.testclient import TestClient
 
 from muwanhe.api import create_app
+from muwanhe.storage.session_db import SessionStore, init_session_db
 
 
 class FakeEngine:
     def reply(self, user_message: str, history: list[dict] | None = None) -> str:
         return f"echo:{user_message}"
+
+
+class RecordingEngine:
+    def __init__(self):
+        self.calls: list[tuple[str, list[dict] | None]] = []
+
+    def reply(self, user_message: str, history: list[dict] | None = None) -> str:
+        self.calls.append((user_message, history))
+        return f"reply:{user_message}"
 
 
 def test_health_and_models():
@@ -61,3 +73,32 @@ def test_streaming_chat():
     assert "data: " in body
     assert "[DONE]" in body
     assert "echo" in body
+
+
+def test_session_history_is_reused():
+    conn = sqlite3.connect(":memory:", check_same_thread=False)
+    init_session_db(conn)
+    engine = RecordingEngine()
+    client = TestClient(create_app(engine, sessions=SessionStore(conn)))
+
+    client.post(
+        "/v1/chat/completions",
+        json={
+            "model": "muwanhe",
+            "user": "u1",
+            "messages": [{"role": "user", "content": "A"}],
+        },
+    )
+    client.post(
+        "/v1/chat/completions",
+        json={
+            "model": "muwanhe",
+            "user": "u1",
+            "messages": [{"role": "user", "content": "B"}],
+        },
+    )
+
+    assert engine.calls[1][1] == [
+        {"role": "user", "content": "A"},
+        {"role": "assistant", "content": "reply:A"},
+    ]
