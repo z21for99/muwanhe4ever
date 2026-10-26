@@ -7,9 +7,11 @@ from dataclasses import replace
 from pathlib import Path
 
 from .compiler.extract import extract_scenes
+from .compiler.index import index_documents
 from .compiler.parse import parse_file
 from .compiler.refine import refine_attributions
 from .compiler.scenes import build_scenes
+from .providers.embedding import EmbeddingSettings, QwenEmbeddingProvider
 from .providers.llm import LLMError, LLMSettings, OpenAICompatLLM
 from .storage.db import init_db, save_parse_result
 from .storage.extraction_db import (
@@ -18,6 +20,8 @@ from .storage.extraction_db import (
     save_extraction,
     seed_characters,
 )
+from .storage.vector_store import init_vector_db
+from .storage.vector_store import search as search_embeddings
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -59,6 +63,27 @@ def build_parser() -> argparse.ArgumentParser:
         help="max number of scenes to process",
     )
     refine.add_argument("--model", default=None, help="override LLM model")
+
+    index = sub.add_parser("index", help="embed scenes/segments into the vector store")
+    index.add_argument("--db", default="data/muwanhe.db", help="SQLite path")
+    index.add_argument(
+        "--kind",
+        choices=["all", "scene", "segment"],
+        default="all",
+    )
+    index.add_argument("--limit", type=int, default=None)
+    index.add_argument("--model", default=None, help="override embedding model")
+    index.add_argument("--dim", type=int, default=None, help="override dimensions")
+
+    search_cmd = sub.add_parser("search", help="semantic search over indexed docs")
+    search_cmd.add_argument("--db", default="data/muwanhe.db", help="SQLite path")
+    search_cmd.add_argument("--query", required=True)
+    search_cmd.add_argument(
+        "--kind",
+        choices=["scene", "segment"],
+        default=None,
+    )
+    search_cmd.add_argument("--top-k", type=int, default=5)
     return parser
 
 
@@ -142,6 +167,71 @@ def _refine(args: argparse.Namespace) -> int:
     return 0
 
 
+def _index(args: argparse.Namespace) -> int:
+    try:
+        settings = EmbeddingSettings.from_env()
+    except LLMError as exc:
+        print(json.dumps({"error": str(exc)}, ensure_ascii=False))
+        return 2
+    if args.model:
+        settings = replace(settings, model=args.model)
+    if args.dim:
+        settings = replace(settings, dimensions=args.dim)
+
+    conn = sqlite3.connect(Path(args.db))
+    try:
+        init_extraction_db(conn)
+        init_vector_db(conn)
+        kinds = ("scene", "segment") if args.kind == "all" else (args.kind,)
+        stats = index_documents(
+            conn,
+            QwenEmbeddingProvider(settings),
+            settings.model,
+            kinds,
+            args.limit,
+        )
+    finally:
+        conn.close()
+
+    print(json.dumps(stats, ensure_ascii=False, indent=2))
+    return 0
+
+
+def _search(args: argparse.Namespace) -> int:
+    try:
+        settings = EmbeddingSettings.from_env()
+    except LLMError as exc:
+        print(json.dumps({"error": str(exc)}, ensure_ascii=False))
+        return 2
+
+    conn = sqlite3.connect(Path(args.db))
+    try:
+        init_vector_db(conn)
+        provider = QwenEmbeddingProvider(settings)
+        vector = provider.embed([args.query])[0]
+        hits = search_embeddings(conn, vector, args.kind, args.top_k)
+    finally:
+        conn.close()
+
+    print(
+        json.dumps(
+            [
+                {
+                    "id": hit.id,
+                    "kind": hit.kind,
+                    "ref_id": hit.ref_id,
+                    "score": round(hit.score, 4),
+                    "text": hit.text[:200],
+                }
+                for hit in hits
+            ],
+            ensure_ascii=False,
+            indent=2,
+        )
+    )
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     if args.command == "parse":
@@ -150,6 +240,10 @@ def main(argv: list[str] | None = None) -> int:
         return _extract(args)
     if args.command == "refine":
         return _refine(args)
+    if args.command == "index":
+        return _index(args)
+    if args.command == "search":
+        return _search(args)
     return 1
 
 
