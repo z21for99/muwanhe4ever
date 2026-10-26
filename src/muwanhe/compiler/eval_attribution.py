@@ -22,10 +22,13 @@ def evaluate_attribution(
     total = 0
     correct = 0
     predicted = 0
+    predicted_correct = 0
     by_method: dict[str, Counter] = {}
 
     for item in items:
         expected = item.get("expected")
+        if expected in (None, "unknown"):
+            expected = None
         row = conn.execute(
             "SELECT speaker_id, method FROM utterances "
             "WHERE id = ? AND run_id = ?",
@@ -39,11 +42,17 @@ def evaluate_attribution(
             correct += 1
         if got:
             predicted += 1
+            if got == expected:
+                predicted_correct += 1
 
         bucket = by_method.setdefault(method, Counter())
         bucket["total"] += 1
         if got == expected:
             bucket["correct"] += 1
+        if got:
+            bucket["predicted"] += 1
+            if got == expected:
+                bucket["predicted_correct"] += 1
 
     return {
         "extraction_run": extraction_run,
@@ -51,11 +60,15 @@ def evaluate_attribution(
         "correct": correct,
         "accuracy": round(correct / total, 4) if total else 0.0,
         "coverage": round(predicted / total, 4) if total else 0.0,
-        "precision": round(correct / predicted, 4) if predicted else 0.0,
+        "precision": (
+            round(predicted_correct / predicted, 4) if predicted else 0.0
+        ),
         "by_method": {
             method: {
                 "total": counts["total"],
                 "correct": counts["correct"],
+                "predicted": counts["predicted"],
+                "predicted_correct": counts["predicted_correct"],
             }
             for method, counts in by_method.items()
         },

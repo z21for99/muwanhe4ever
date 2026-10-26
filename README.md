@@ -82,15 +82,16 @@ docs/superpowers/  design spec + plans
 
 ## 当前指标
 
-- 66 个单元测试通过。
+- 67 个单元测试通过。
 - scene 检索（20 场景 leave-one-out）：向量 top1 0.85 / top5 0.90；FTS exact-substring top1 1.0。
-- strict 对话：4,134 条；高精度沐婉荷台词 224 条（window=8）。
+- strict 对话：4,134 条；高精度沐婉荷台词 223 条（window=8）。
 - 场景分段：725 段已生成；FTS 已索引 121 scene + 703 segment。
-- attribution gold（14 条）：accuracy 0.571 / coverage 0.643 / precision 0.889。
+- attribution gold（44 条，2 个场景）：accuracy 0.500 / coverage 0.386 / precision 0.529。
 
 ## 已知问题
 
-- speaker 归属的 strict 模式 precision 高（0.889），但 coverage 只有 0.643；还有 5 条 gold 引语未覆盖，需要更强模型或人工复核。
+- 第一场 14 条 gold 的 precision 是 0.889，扩到 44 条后掉到 0.529：多人物场景里 `我/她/孙淑怡` 的 cue 会互相抢话，strict 仍会把别人台词分给主角色。
+- speaker 归属的 strict coverage 只有 0.386，大部分引语仍是 `unverified`；需要更强模型或人工复核。
 - 向量索引只覆盖 121 scene + 68 segment；剩余 657 段用 FTS5 关键词兜底，语义检索需等 Qwen 额度或本地 BGE-M3。
 - LLM 复核使用 `doubao-seed-2-0-mini` 时归属质量不足；DeepSeek 4.1 Flash 尚未开通。
 - API 支持 `stream=true` SSE；Web 页仍是一次性返回。

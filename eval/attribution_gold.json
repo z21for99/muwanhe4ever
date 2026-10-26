@@ -1,5 +1,5 @@
 {
-  "description": "Manual speaker labels for scene v01c01p0s01. IDs only; no novel text is stored here.",
+  "description": "Manual speaker labels for scenes v01c01p0s01 and v01c05p0s00. IDs only; no novel text is stored here. expected=unknown means a non-main character or narration.",
   "items": [
     {"utterance_id": "v01c01p0s01:q000", "expected": "muwanhe"},
     {"utterance_id": "v01c01p0s01:q001", "expected": "baifengyuan"},
@@ -14,6 +14,37 @@
     {"utterance_id": "v01c01p0s01:q013", "expected": "muwanhe"},
     {"utterance_id": "v01c01p0s01:q014", "expected": "muwanhe"},
     {"utterance_id": "v01c01p0s01:q015", "expected": "muwanhe"},
-    {"utterance_id": "v01c01p0s01:q016", "expected": "baifengyuan"}
+    {"utterance_id": "v01c01p0s01:q016", "expected": "baifengyuan"},
+
+    {"utterance_id": "v01c05p0s00:q000", "expected": "baifengyuan"},
+    {"utterance_id": "v01c05p0s00:q001", "expected": "unknown"},
+    {"utterance_id": "v01c05p0s00:q002", "expected": "unknown"},
+    {"utterance_id": "v01c05p0s00:q003", "expected": "baifengyuan"},
+    {"utterance_id": "v01c05p0s00:q004", "expected": "unknown"},
+    {"utterance_id": "v01c05p0s00:q005", "expected": "unknown"},
+    {"utterance_id": "v01c05p0s00:q006", "expected": "unknown"},
+    {"utterance_id": "v01c05p0s00:q007", "expected": "baifengyuan"},
+    {"utterance_id": "v01c05p0s00:q008", "expected": "unknown"},
+    {"utterance_id": "v01c05p0s00:q009", "expected": "baifengyuan"},
+    {"utterance_id": "v01c05p0s00:q010", "expected": "unknown"},
+    {"utterance_id": "v01c05p0s00:q011", "expected": "baifengyuan"},
+    {"utterance_id": "v01c05p0s00:q012", "expected": "unknown"},
+    {"utterance_id": "v01c05p0s00:q013", "expected": "unknown"},
+    {"utterance_id": "v01c05p0s00:q014", "expected": "baifengyuan"},
+    {"utterance_id": "v01c05p0s00:q015", "expected": "unknown"},
+    {"utterance_id": "v01c05p0s00:q016", "expected": "baifengyuan"},
+    {"utterance_id": "v01c05p0s00:q017", "expected": "unknown"},
+    {"utterance_id": "v01c05p0s00:q018", "expected": "unknown"},
+    {"utterance_id": "v01c05p0s00:q019", "expected": "baifengyuan"},
+    {"utterance_id": "v01c05p0s00:q020", "expected": "unknown"},
+    {"utterance_id": "v01c05p0s00:q021", "expected": "unknown"},
+    {"utterance_id": "v01c05p0s00:q022", "expected": "unknown"},
+    {"utterance_id": "v01c05p0s00:q023", "expected": "unknown"},
+    {"utterance_id": "v01c05p0s00:q024", "expected": "baifengyuan"},
+    {"utterance_id": "v01c05p0s00:q025", "expected": "unknown"},
+    {"utterance_id": "v01c05p0s00:q026", "expected": "baifengyuan"},
+    {"utterance_id": "v01c05p0s00:q027", "expected": "unknown"},
+    {"utterance_id": "v01c05p0s00:q028", "expected": "unknown"},
+    {"utterance_id": "v01c05p0s00:q029", "expected": "unknown"}
   ]
 }
