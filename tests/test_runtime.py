@@ -55,6 +55,8 @@ def test_engine_reply_uses_style_and_evidence(tmp_path):
     assert "雨夜" in system
     assert "吃饭了吗？" in system
     assert "她怕黑。" in system
+    assert "白风远本人" in system
+    assert "全书结尾之后" in system
 
 
 class BrokenEmbedder:
