@@ -31,3 +31,13 @@ def test_chat_completion():
     body = response.json()
     assert body["object"] == "chat.completion"
     assert body["choices"][0]["message"]["content"] == "echo:我回来了"
+
+
+def test_web_page():
+    client = TestClient(create_app(FakeEngine()))
+
+    response = client.get("/")
+
+    assert response.status_code == 200
+    assert "沐婉荷" in response.text
+    assert "/v1/chat/completions" in response.text

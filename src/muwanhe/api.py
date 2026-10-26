@@ -5,7 +5,10 @@ import uuid
 from typing import Any, Protocol
 
 from fastapi import FastAPI, HTTPException
+from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
+
+from .web import INDEX_HTML
 
 
 class ChatRequest(BaseModel):
@@ -29,6 +32,10 @@ def create_app(engine: ReplyEngine) -> FastAPI:
     @app.get("/health")
     def health() -> dict:
         return {"status": "ok"}
+
+    @app.get("/", response_class=HTMLResponse)
+    def index() -> str:
+        return INDEX_HTML
 
     @app.get("/v1/models")
     def models() -> dict:
